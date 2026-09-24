@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import type { ClientView, TeamView } from "../../shared/types";
 import type { ClientMessage } from "../../shared/types";
 import { RevealBoard } from "./Reveal";
+import { Stars } from "./Stars";
 import { Track } from "./Track";
 
 export function DisplayBoard({
@@ -76,8 +77,10 @@ export function DisplayBoard({
       <div className="board-main">
         {playing && (
           <section className="question-block">
+            {view.current && <Stars value={view.current.stars} />}
             {view.current?.category && <p className="category">{view.current.category}</p>}
             <h2 className="question">{view.current?.question ?? "等緊下一題"}</h2>
+            {view.notice && <p className="notice">{view.notice}</p>}
             <p className="status-line" data-testid="status-line">
               {view.awaiting === "decision" ? "要牌定停牌？" : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
             </p>
@@ -191,6 +194,7 @@ function TeamColumn({ team, tone }: { team: TeamView; tone: "red" | "blue" }) {
   const cards = team.cards.map((card) => ({
     questionId: card.questionId,
     question: card.question,
+    stars: card.stars,
     estimate: card.estimate,
   }));
   return (
@@ -202,6 +206,7 @@ function TeamColumn({ team, tone }: { team: TeamView; tone: "red" | "blue" }) {
       <p className="members">{team.members.length ? team.members.map((member) => member.nickname).join("、") : "未有人加入"}</p>
       {cards.map((card) => (
         <div key={card.questionId} className="card" data-testid="public-card">
+          <Stars value={card.stars} />
           <p>{card.question}</p>
           <p className="estimate">估 {card.estimate}</p>
         </div>

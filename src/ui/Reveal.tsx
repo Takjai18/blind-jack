@@ -1,5 +1,6 @@
 import { winnerLine } from "../../shared/rules";
 import type { ClientView, TeamView } from "../../shared/types";
+import { Stars } from "./Stars";
 
 export function RevealBoard({
   view,
@@ -48,6 +49,7 @@ function Score({ team, tone }: { team: TeamView; tone: "red" | "blue" }) {
       </p>
       {team.cards.map((card) => (
         <div key={card.questionId} className="card" style={{ background: "rgba(23,32,51,0.06)" }}>
+          <Stars value={card.stars} />
           <p>{card.question}</p>
           <p className="estimate">
             估 {card.estimate}

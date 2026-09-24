@@ -366,6 +366,29 @@ h1 {
   margin: 0 0 6px;
 }
 
+.stars {
+  margin: 0 0 6px;
+  color: var(--gold);
+  font-size: clamp(1.4rem, 3vw, 2.2rem);
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+.stars-off {
+  opacity: 0.35;
+}
+
+.card .stars {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.notice {
+  margin: 8px 0 0;
+  color: var(--gold);
+  font-weight: 800;
+}
+
 .status-line {
   margin: 8px 0 0;
   font-size: clamp(1.3rem, 2.5vw, 2rem);

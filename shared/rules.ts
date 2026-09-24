@@ -1,3 +1,4 @@
+import { STAR_WEIGHTS, WARMUP_DRAWS, starsOf, type Stars } from "./stars";
 import type { Awaiting, Question, RoomState, TeamId, TeamState, Winner } from "./types";
 
 export interface StepResult {
@@ -6,7 +7,7 @@ export interface StepResult {
   error?: string;
 }
 
-const stableOrder = () => 0.999999;
+const pickFirst = () => 0;
 
 export function otherTeam(team: TeamId): TeamId {
   return team === "red" ? "blue" : "red";
@@ -18,6 +19,9 @@ export function createRoom(code: string): RoomState {
     phase: "lobby",
     deck: [],
     current: null,
+    drawnCount: 0,
+    lastStar: null,
+    notice: null,
     turn: "red",
     red: emptyTeam("red", "紅隊"),
     blue: emptyTeam("blue", "藍隊"),
@@ -62,19 +66,23 @@ export function beginHand(
 ): RoomState {
   const usable = questions.filter(isPlayable).map(copyQuestion);
   if (usable.length === 0) throw new Error("題庫係空嘅");
-  const deck = shuffle(usable, rng).slice(0, 20);
-  const current = deck.shift() ?? null;
-  if (!current) throw new Error("題庫係空嘅");
+  const deck = usable.length > 20 ? shuffle(usable, rng).slice(0, 20) : usable;
   const next = structuredClone(state);
   next.phase = "playing";
   next.deck = deck;
-  next.current = current;
+  next.drawnCount = 0;
+  next.lastStar = null;
+  next.notice = null;
+  next.current = null;
   next.turn = "red";
   next.winner = null;
   next.lastSecret = null;
   next.announcement = null;
   next.awaiting = "estimate";
   next.log = ["開波喇，紅隊先估"];
+  const current = drawNext(next, rng);
+  if (!current) throw new Error("題庫係空嘅");
+  next.current = current;
   next.revision += 1;
   for (const id of ["red", "blue"] as const) {
     next[id].cards = [];
@@ -85,7 +93,13 @@ export function beginHand(
   return next;
 }
 
-export function submitEstimate(state: RoomState, team: TeamId, estimate: number, now = Date.now()): StepResult {
+export function submitEstimate(
+  state: RoomState,
+  team: TeamId,
+  estimate: number,
+  now = Date.now(),
+  rng: () => number = Math.random,
+): StepResult {
   if (state.phase !== "playing") return fail(state, "而家未開波");
   if (state.turn !== team) return fail(state, "未輪到你哋");
   if (state.awaiting !== "estimate") return fail(state, "而家未到輸入估計");
@@ -101,6 +115,7 @@ export function submitEstimate(state: RoomState, team: TeamId, estimate: number,
   actor.cards.push({
     questionId: card.id,
     question: card.question,
+    stars: card.stars,
     estimate,
     actual: card.answer,
   });
@@ -113,7 +128,7 @@ export function submitEstimate(state: RoomState, team: TeamId, estimate: number,
   pushLog(next, "真實答案已送到對手手機");
 
   if (!next[opponent].stood) next.turn = opponent;
-  const drawn = next.deck.shift() ?? null;
+  const drawn = drawNext(next, rng);
   if (!drawn) {
     return {
       state: finish(next),
@@ -200,6 +215,59 @@ function emptyTeam(id: TeamId, name: string): TeamState {
   return { id, name, members: [], estimateSum: 0, actualSum: 0, stood: false, cards: [] };
 }
 
+function drawNext(state: RoomState, rng: () => number): Question | null {
+  if (state.deck.length === 0) return null;
+  if (typeof state.drawnCount !== "number") return state.deck.shift() ?? null;
+  const opening = state.drawnCount < WARMUP_DRAWS;
+  const available = new Set(state.deck.map((card) => card.stars));
+  const star = chooseStar(opening, state.lastStar, available, rng);
+  const chosen = takeStar(state.deck, star, rng) ?? takeAny(state.deck, rng);
+  if (!chosen) return null;
+  if (opening && chosen.stars !== 1 && !state.notice) {
+    state.notice = chosen.stars === 2 ? "1星題唔夠，熱身改用2星" : "1星題唔夠，熱身改用3星";
+  }
+  state.lastStar = chosen.stars;
+  state.drawnCount += 1;
+  return chosen;
+}
+
+function chooseStar(opening: boolean, last: Stars | null, available: Set<Stars>, rng: () => number): Stars {
+  if (opening) {
+    if (available.has(1)) return 1;
+    if (available.has(2)) return 2;
+    return 3;
+  }
+  const weights: Record<Stars, number> = { ...STAR_WEIGHTS };
+  if (last === 1) weights[1] = 0;
+  if (last === 3) weights[3] = 0;
+  const options = ([1, 2, 3] as const).filter((star) => available.has(star) && weights[star] > 0);
+  if (options.length === 0) return [...available][0] ?? 1;
+  const total = options.reduce((sum, star) => sum + weights[star], 0);
+  let roll = rng() * total;
+  for (const star of options) {
+    roll -= weights[star];
+    if (roll <= 0) return star;
+  }
+  return options[options.length - 1] ?? 1;
+}
+
+function takeStar(pool: Question[], star: Stars, rng: () => number): Question | null {
+  const matches = pool.filter((card) => card.stars === star);
+  if (matches.length === 0) return null;
+  const index = Math.min(matches.length - 1, Math.floor(rng() * matches.length));
+  const chosen = matches[index];
+  if (!chosen) return null;
+  const at = pool.findIndex((card) => card.id === chosen.id);
+  if (at >= 0) pool.splice(at, 1);
+  return chosen;
+}
+
+function takeAny(pool: Question[], rng: () => number): Question | null {
+  if (pool.length === 0) return null;
+  const index = Math.min(pool.length - 1, Math.floor(rng() * pool.length));
+  return pool.splice(index, 1)[0] ?? null;
+}
+
 function isPlayable(q: Question): boolean {
   return (
     typeof q.id === "string" &&
@@ -217,6 +285,7 @@ function copyQuestion(q: Question): Question {
     id: q.id,
     question: q.question.trim(),
     answer: q.answer,
+    stars: starsOf(q.stars),
     ...(q.category ? { category: q.category } : {}),
   };
 }
@@ -232,4 +301,4 @@ function shuffle<T>(items: T[], rng: () => number): T[] {
   return arr;
 }
 
-export const keepDealOrder = stableOrder;
+export const keepDealOrder = pickFirst;

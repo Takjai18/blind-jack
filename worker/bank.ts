@@ -1,5 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { bundledQuestions } from "../shared/questions";
+import { starsOf } from "../shared/stars";
 import type { Question } from "../shared/types";
 import { validateQuestionInput } from "../shared/validate";
 import type { Env } from "./env";
@@ -85,7 +86,16 @@ export class QuestionBank extends DurableObject<Env> {
     if (!this.questions) {
       this.questions = bundledQuestions();
       await this.save();
+      return this.questions;
     }
+    const bundledStars = new Map(bundledQuestions().map((question) => [question.id, question.stars]));
+    let changed = false;
+    this.questions = this.questions.map((question) => {
+      if (question.stars === 1 || question.stars === 2 || question.stars === 3) return question;
+      changed = true;
+      return { ...question, stars: bundledStars.get(question.id) ?? starsOf(question.stars) };
+    });
+    if (changed) await this.save();
     return this.questions;
   }
 

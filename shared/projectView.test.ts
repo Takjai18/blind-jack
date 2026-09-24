@@ -13,13 +13,13 @@ function hasKey(value: unknown, key: string): boolean {
 
 function sample() {
   const questions: Question[] = [
-    { id: "a", question: "甲", answer: 4 },
-    { id: "b", question: "乙", answer: 9 },
-    { id: "c", question: "丙", answer: 2 },
+    { id: "a", question: "甲", answer: 4, stars: 1 },
+    { id: "b", question: "乙", answer: 9, stars: 1 },
+    { id: "c", question: "丙", answer: 2, stars: 1 },
   ];
   let state = beginHand(createRoom("HKID"), questions, keepDealOrder);
-  state = submitEstimate(state, "red", 1, 1000).state;
-  const afterBlue = submitEstimate(state, "blue", 3, 2000);
+  state = submitEstimate(state, "red", 1, 1000, () => 0).state;
+  const afterBlue = submitEstimate(state, "blue", 3, 2000, () => 0);
   return { afterRed: state, afterBlue: afterBlue.state };
 }
 
@@ -33,8 +33,9 @@ describe("projectView", () => {
     expect(view.current && "answer" in view.current).toBe(false);
     expect(view).not.toHaveProperty("deck");
     expect(view.announcement?.text).toBe("真實答案已送到對手手機");
-    expect(view.red.cards[0]).toEqual({ questionId: "a", question: "甲", estimate: 1 });
-    expect(view.blue.cards[0]).toEqual({ questionId: "b", question: "乙", estimate: 3 });
+    expect(view.red.cards[0]).toEqual({ questionId: "a", question: "甲", stars: 1, estimate: 1 });
+    expect(view.blue.cards[0]).toEqual({ questionId: "b", question: "乙", stars: 1, estimate: 3 });
+    expect(view.current?.stars).toBe(1);
     expect(JSON.stringify(view)).not.toContain('"answer"');
   });
 

@@ -3,72 +3,84 @@
     "id": "q1",
     "question": "四福音有幾卷？",
     "answer": 4,
+    "stars": 1,
     "category": "聖經"
   },
   {
     "id": "q2",
     "question": "十誡有幾條？",
     "answer": 10,
+    "stars": 1,
     "category": "聖經"
   },
   {
     "id": "q3",
     "question": "上帝用幾日完成創造（唔計休息日）？",
     "answer": 6,
+    "stars": 1,
     "category": "聖經"
   },
   {
     "id": "q4",
     "question": "一隻手有幾隻手指？",
     "answer": 5,
+    "stars": 1,
     "category": "常識"
   },
   {
     "id": "q5",
     "question": "一星期有幾日？",
     "answer": 7,
+    "stars": 1,
     "category": "常識"
   },
   {
     "id": "q6",
     "question": "挪亞方舟每種動物有幾多對？",
     "answer": 2,
+    "stars": 1,
     "category": "聖經"
   },
   {
     "id": "q7",
     "question": "耶穌復活係第幾日？",
     "answer": 3,
+    "stars": 1,
     "category": "聖經"
   },
   {
     "id": "q8",
     "question": "迦拿婚宴啲石缸有幾口？",
     "answer": 6,
+    "stars": 3,
     "category": "聖經"
   },
   {
     "id": "q9",
     "question": "香港電車有幾多層？",
     "answer": 2,
+    "stars": 1,
     "category": "香港"
   },
   {
     "id": "q10",
     "question": "八福有幾多個？",
     "answer": 8,
+    "stars": 2,
     "category": "聖經"
   },
   {
     "id": "q11",
     "question": "彼得不認主幾多次？",
     "answer": 3,
+    "stars": 2,
     "category": "聖經"
   },
   {
     "id": "q12",
     "question": "啟示錄寫信畀幾多間教會？",
     "answer": 7,
+    "stars": 3,
     "category": "聖經"
   }
 ]

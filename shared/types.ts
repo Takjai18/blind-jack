@@ -1,3 +1,6 @@
+import type { Stars } from "./stars";
+
+export type { Stars } from "./stars";
 export type TeamId = "red" | "blue";
 export type Role = "display" | TeamId;
 export type Phase = "lobby" | "playing" | "reveal" | "finished";
@@ -8,12 +11,14 @@ export interface Question {
   id: string;
   question: string;
   answer: number;
+  stars: Stars;
   category?: string;
 }
 
 export interface ClaimedCard {
   questionId: string;
   question: string;
+  stars: Stars;
   estimate: number;
   actual: number;
 }
@@ -51,6 +56,9 @@ export interface RoomState {
   hostId?: string;
   deck: Question[];
   current: Question | null;
+  drawnCount: number;
+  lastStar: Stars | null;
+  notice: string | null;
   turn: TeamId;
   red: TeamState;
   blue: TeamState;
@@ -65,6 +73,7 @@ export interface RoomState {
 export interface PublicCard {
   questionId: string;
   question: string;
+  stars: Stars;
   estimate: number;
   actual?: number;
 }
@@ -82,6 +91,7 @@ export interface TeamView {
 export interface CurrentView {
   id: string;
   question: string;
+  stars: Stars;
   category?: string;
 }
 
@@ -96,6 +106,7 @@ export interface ClientView {
   red: TeamView;
   blue: TeamView;
   announcement: Announcement | null;
+  notice: string | null;
   lastSecret: { actual: number; question: string; at: number } | null;
   winner: Winner;
   log: string[];

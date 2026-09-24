@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { Question } from "../../shared/types";
+import type { Question, Stars } from "../../shared/types";
 import { validateQuestionInput } from "../../shared/validate";
 import { navigate } from "../App";
 
@@ -10,7 +10,7 @@ export function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [error, setError] = useState("");
-  const [draft, setDraft] = useState({ question: "", answer: "", category: "" });
+  const [draft, setDraft] = useState({ question: "", answer: "", category: "", stars: 1 as Stars });
 
   useEffect(() => {
     if (sessionStorage.getItem(PASSWORD_KEY)) void load(sessionStorage.getItem(PASSWORD_KEY) ?? "");
@@ -52,17 +52,18 @@ export function AdminPage() {
         question: draft.question,
         answer: Number(draft.answer),
         category: draft.category,
+        stars: draft.stars,
       });
       await send("/api/admin/questions", "POST", fields);
-      setDraft({ question: "", answer: "", category: "" });
+      setDraft({ question: "", answer: "", category: "", stars: 1 });
     } catch (err) {
       setError(err instanceof Error ? err.message : "請檢查題目");
     }
   }
 
-  async function saveRow(row: Question, question: string, answer: string, category: string) {
+  async function saveRow(row: Question, question: string, answer: string, category: string, stars: Stars) {
     try {
-      const fields = validateQuestionInput({ question, answer: Number(answer), category });
+      const fields = validateQuestionInput({ question, answer: Number(answer), category, stars });
       await send(`/api/admin/questions/${encodeURIComponent(row.id)}`, "PUT", fields);
     } catch (err) {
       setError(err instanceof Error ? err.message : "請檢查題目");
@@ -129,7 +130,11 @@ export function AdminPage() {
     <main className="admin">
       <p className="kicker">題庫</p>
       <h1>而家有 {questions.length} 題</h1>
-      <p>答案只可以係 0 到 10。清空晒之後，開波會用內置後備題。</p>
+      <p>
+        答案只可以係 0 到 10。星級：1星 {questions.filter((row) => (row.stars ?? 1) === 1).length} 題、2星{" "}
+        {questions.filter((row) => row.stars === 2).length} 題、3星 {questions.filter((row) => row.stars === 3).length}{" "}
+        題。開波頭四張會抽 1 星。清空晒之後，開波會用內置後備題。
+      </p>
       <div className="row">
         <button type="button" className="btn gold" onClick={exportFile}>
           匯出 JSON
@@ -172,6 +177,7 @@ export function AdminPage() {
               onChange={(event) => setDraft({ ...draft, category: event.target.value })}
             />
           </div>
+          <StarPicker value={draft.stars} onChange={(stars) => setDraft({ ...draft, stars })} />
           <button type="button" className="btn gold" onClick={() => void addQuestion()}>
             加一題
           </button>
@@ -182,7 +188,7 @@ export function AdminPage() {
           <QuestionRow
             key={row.id}
             row={row}
-            onSave={(question, answer, category) => void saveRow(row, question, answer, category)}
+            onSave={(question, answer, category, stars) => void saveRow(row, question, answer, category, stars)}
             onDelete={() => void send(`/api/admin/questions/${encodeURIComponent(row.id)}`, "DELETE")}
           />
         ))}
@@ -196,18 +202,36 @@ export function AdminPage() {
   );
 }
 
+function StarPicker({ value, onChange }: { value: Stars; onChange: (stars: Stars) => void }) {
+  return (
+    <div className="row">
+      {([1, 2, 3] as const).map((stars) => (
+        <button
+          key={stars}
+          type="button"
+          className={value === stars ? "btn gold" : "btn ghost"}
+          onClick={() => onChange(stars)}
+        >
+          {"★".repeat(stars)} {stars}星
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function QuestionRow({
   row,
   onSave,
   onDelete,
 }: {
   row: Question;
-  onSave: (question: string, answer: string, category: string) => void;
+  onSave: (question: string, answer: string, category: string, stars: Stars) => void;
   onDelete: () => void;
 }) {
   const [question, setQuestion] = useState(row.question);
   const [answer, setAnswer] = useState(String(row.answer));
   const [category, setCategory] = useState(row.category ?? "");
+  const [stars, setStars] = useState<Stars>(row.stars === 2 || row.stars === 3 ? row.stars : 1);
   return (
     <section className="panel q-item">
       <textarea rows={2} value={question} onChange={(event) => setQuestion(event.target.value)} />
@@ -215,8 +239,9 @@ function QuestionRow({
         <input inputMode="numeric" value={answer} onChange={(event) => setAnswer(event.target.value)} />
         <input value={category} placeholder="分類" onChange={(event) => setCategory(event.target.value)} />
       </div>
+      <StarPicker value={stars} onChange={setStars} />
       <div className="row">
-        <button type="button" className="btn" onClick={() => onSave(question, answer, category)}>
+        <button type="button" className="btn" onClick={() => onSave(question, answer, category, stars)}>
           儲存
         </button>
         <button type="button" className="btn ghost" onClick={onDelete}>

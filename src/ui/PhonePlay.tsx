@@ -3,6 +3,7 @@ import type { ClientMessage, ClientView, TeamId } from "../../shared/types";
 import type { SecretEvent } from "../useRoom";
 import { NumPad } from "./NumPad";
 import { RevealBoard } from "./Reveal";
+import { Stars } from "./Stars";
 
 export function PhonePlay({
   team,
@@ -84,6 +85,7 @@ export function PhonePlay({
         <>
           {myTurn && view.current && (
             <section>
+              <Stars value={view.current.stars} />
               {view.current.category && <p className="category">{view.current.category}</p>}
               <h2 className="question" style={{ fontSize: "clamp(1.8rem, 8vw, 3rem)" }}>
                 {view.current.question}
@@ -140,7 +142,12 @@ export function PhonePlay({
                   ? `等${view.turn === "red" ? "紅隊" : "藍隊"}決定要牌定停牌`
                   : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
               </p>
-              {view.current && <p>{view.current.question}</p>}
+              {view.current && (
+                <>
+                  <Stars value={view.current.stars} />
+                  <p>{view.current.question}</p>
+                </>
+              )}
             </section>
           )}
 
@@ -151,6 +158,7 @@ export function PhonePlay({
             </p>
             {opp.cards.map((card) => (
               <div key={card.questionId} className="card" data-testid="opp-card">
+                <Stars value={card.stars} />
                 <p>{card.question}</p>
                 <p className="estimate">
                   佢哋估 {card.estimate}
@@ -172,6 +180,7 @@ export function PhonePlay({
             {mine.stood && <p className="stood">你哋停咗牌</p>}
             {mine.cards.map((card) => (
               <div key={card.questionId} className="card" data-testid="own-card">
+                <Stars value={card.stars} />
                 <p>{card.question}</p>
                 <p className="estimate">你哋估：{card.estimate}</p>
               </div>

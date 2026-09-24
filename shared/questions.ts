@@ -1,4 +1,5 @@
 import raw from "../data/questions.json";
+import { starsOf } from "./stars";
 import type { Question } from "./types";
 
 export function bundledQuestions(): Question[] {
@@ -6,6 +7,7 @@ export function bundledQuestions(): Question[] {
     id: q.id,
     question: q.question,
     answer: q.answer,
+    stars: starsOf(q.stars),
     ...(q.category ? { category: q.category } : {}),
   }));
 }

@@ -1,3 +1,4 @@
+import { starsOf } from "./stars";
 import type { ClientView, PublicCard, Role, RoomState, TeamState, TeamView } from "./types";
 
 const revealedPhase = (phase: RoomState["phase"]) => phase === "reveal" || phase === "finished";
@@ -30,6 +31,7 @@ export function projectView(state: RoomState, role: Role): ClientView {
       ? {
           id: state.current.id,
           question: state.current.question,
+          stars: starsOf(state.current.stars),
           ...(state.current.category ? { category: state.current.category } : {}),
         }
       : null,
@@ -37,6 +39,7 @@ export function projectView(state: RoomState, role: Role): ClientView {
     red: teamView(state.red, redActual),
     blue: teamView(state.blue, blueActual),
     announcement: state.announcement ? { text: state.announcement.text, at: state.announcement.at } : null,
+    notice: state.notice ?? null,
     lastSecret: secret,
     winner: state.winner,
     log: state.log.slice(),
@@ -49,6 +52,7 @@ function teamView(team: TeamState, showActual: boolean): TeamView {
     const pub: PublicCard = {
       questionId: card.questionId,
       question: card.question,
+      stars: starsOf(card.stars),
       estimate: card.estimate,
     };
     if (showActual) pub.actual = card.actual;
