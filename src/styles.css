@@ -273,20 +273,43 @@ h1 {
 }
 
 .qr {
-  background: white;
-  border-radius: 12px;
-  padding: 6px;
+  width: 168px;
+  background: #ffffff;
+  color: #172033;
+  border-radius: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
 }
 
-.qr img {
+.qr.big {
+  width: 100%;
+  align-self: center;
+  padding: 18px;
+}
+
+.qr-svg svg {
   display: block;
-  width: 92px;
-  height: 92px;
+  width: 100%;
+  height: auto;
+  shape-rendering: crispEdges;
 }
 
-.qr.big img {
-  width: 220px;
-  height: 220px;
+.qr-url {
+  margin: 0;
+  color: #172033;
+  font-size: 0.95rem;
+  font-weight: 800;
+  line-height: 1.25;
+  text-align: center;
+  word-break: break-all;
+}
+
+.qr .btn {
+  background: #172033;
+  color: #f7f1e6;
 }
 
 .lobby-board {
@@ -294,7 +317,7 @@ h1 {
   max-height: 100dvh;
   overflow: hidden;
   display: grid;
-  grid-template-columns: 1fr 240px;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 48vh);
   grid-template-rows: minmax(0, 1fr) auto;
   gap: 16px;
   padding: 20px 24px 16px;
@@ -313,8 +336,7 @@ h1 {
 }
 
 .lobby-board .qr {
-  align-self: start;
-  justify-self: end;
+  justify-self: stretch;
 }
 
 .lobby-board .board-foot {
