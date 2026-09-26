@@ -69,6 +69,7 @@ export interface RoomState {
   log: string[];
   awaiting: Awaiting;
   intel: IntelMode;
+  seenIds: string[];
   revision: number;
 }
 

@@ -91,6 +91,7 @@ export function PhonePlay({
               <h2 className="question" style={{ fontSize: "clamp(1.8rem, 8vw, 3rem)" }}>
                 {view.current.question}
               </h2>
+              {view.notice && <p className="hint">{view.notice}</p>}
             </section>
           )}
           {myTurn && view.awaiting === "estimate" && (

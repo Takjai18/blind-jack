@@ -31,6 +31,7 @@ export function createRoom(code: string): RoomState {
     log: [],
     awaiting: null,
     intel: "open",
+    seenIds: [],
     revision: 0,
   };
 }
@@ -67,10 +68,15 @@ export function beginHand(
 ): RoomState {
   const usable = questions.filter(isPlayable).map(copyQuestion);
   if (usable.length === 0) throw new Error("題庫係空嘅");
-  const deck = usable.length > 20 ? shuffle(usable, rng).slice(0, 20) : usable;
+  const seen = new Set(state.seenIds ?? []);
+  let fresh = usable.filter((question) => !seen.has(question.id));
+  const recycling = fresh.length === 0;
+  if (recycling) fresh = usable;
+  const deck = fresh.length > 20 ? shuffle(fresh, rng).slice(0, 20) : fresh;
   const next = structuredClone(state);
   next.phase = "playing";
   next.deck = deck;
+  next.seenIds = recycling ? [] : [...seen];
   next.drawnCount = 0;
   next.lastStar = null;
   next.notice = null;
@@ -84,6 +90,7 @@ export function beginHand(
   const current = drawNext(next, rng);
   if (!current) throw new Error("題庫係空嘅");
   next.current = current;
+  if (recycling && !next.notice) next.notice = "題目出完一輪，而家會再出過";
   next.revision += 1;
   for (const id of ["red", "blue"] as const) {
     next[id].cards = [];
@@ -197,6 +204,11 @@ function finish(state: RoomState): RoomState {
   return state;
 }
 
+function remember(state: RoomState, id: string) {
+  if (!state.seenIds) state.seenIds = [];
+  if (!state.seenIds.includes(id)) state.seenIds.push(id);
+}
+
 function awaitingFor(state: RoomState): Awaiting {
   return state[state.turn].cards.length < 2 ? "estimate" : "decision";
 }
@@ -231,6 +243,7 @@ function drawNext(state: RoomState, rng: () => number): Question | null {
   }
   state.lastStar = chosen.stars;
   state.drawnCount += 1;
+  remember(state, chosen.id);
   return chosen;
 }
 

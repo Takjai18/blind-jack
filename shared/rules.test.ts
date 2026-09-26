@@ -231,6 +231,20 @@ describe("star draw", () => {
     expect(state.current?.stars).toBe(2);
   });
 
+  it("avoids questions already shown when the same room plays again", () => {
+    const questions = [q("a", 1), q("b", 2), q("c", 3), q("d", 4)];
+    let state = beginHand(createRoom("STAR"), questions, () => 0);
+    expect(state.current?.id).toBe("a");
+    state = beginHand(state, questions, () => 0);
+    expect(state.current?.id).toBe("b");
+    expect(state.deck.map((card) => card.id)).toEqual(["c", "d"]);
+    state = beginHand(state, questions, () => 0);
+    state = beginHand(state, questions, () => 0);
+    const recycled = beginHand(state, questions, () => 0);
+    expect(recycled.notice).toBe("題目出完一輪，而家會再出過");
+    expect(questions.map((card) => card.id)).toContain(recycled.current?.id);
+  });
+
   it("uses a 2-star card for the warmup when no 1-star question is left", () => {
     const state = beginHand(createRoom("STAR"), [q("a", 4, 2)], () => 0);
     expect(state.current?.stars).toBe(2);
