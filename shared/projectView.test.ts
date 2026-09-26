@@ -60,6 +60,21 @@ describe("projectView", () => {
     expect(view.lastSecret).toEqual({ actual: 4, question: "甲", at: 1000 });
   });
 
+  it("hides opponent actuals in blind mode until the reveal", () => {
+    const { afterBlue } = sample();
+    const hidden = { ...afterBlue, intel: "hidden" as const };
+    const red = projectView(hidden, "red");
+    const blue = projectView(hidden, "blue");
+    expect(red.blue.cards[0]).not.toHaveProperty("actual");
+    expect(red.blue).not.toHaveProperty("actualSum");
+    expect(red.lastSecret).toBeNull();
+    expect(blue.red.cards[0]).not.toHaveProperty("actual");
+    expect(blue.lastSecret).toBeNull();
+    const revealed = projectView({ ...hidden, phase: "reveal" }, "red");
+    expect(revealed.red.cards[0]?.actual).toBe(4);
+    expect(revealed.blue.cards[0]?.actual).toBe(9);
+  });
+
   it("opens both teams' actuals at reveal, including on the projector", () => {
     const { afterBlue } = sample();
     const revealed = { ...afterBlue, phase: "reveal" as const, winner: "blue" as const };

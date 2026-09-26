@@ -59,7 +59,8 @@ describe("hand sequence", () => {
     expect(tooEarly.state).toBe(state);
 
     const badNumber = lock(state, "red", 11, 1000);
-    expect(badNumber.error).toMatch(/0 到 10/);
+    expect(badNumber.error).toMatch(/1 到 10/);
+    expect(lock(state, "red", 0, 1000).error).toMatch(/1 到 10/);
     expect(lock(state, "blue", 1, 1000).error).toMatch(/未輪到/);
 
     let step = lock(state, "red", 1, 1000);
@@ -120,21 +121,21 @@ describe("hand sequence", () => {
 
   it("lets the same team draw again after the other team has stood", () => {
     let state = deal([1, 1, 1, 1, 1, 1]);
-    state = lock(state, "red", 0, 1).state;
-    state = lock(state, "blue", 0, 2).state;
-    state = lock(state, "red", 0, 3).state;
-    state = lock(state, "blue", 0, 4).state;
+    state = lock(state, "red", 1, 1).state;
+    state = lock(state, "blue", 1, 2).state;
+    state = lock(state, "red", 1, 3).state;
+    state = lock(state, "blue", 1, 4).state;
     state = hit(state, "red").state;
     expect(state.awaiting).toBe("estimate");
     expect(state.current?.id).toBe("e");
-    state = lock(state, "red", 0, 5).state;
+    state = lock(state, "red", 1, 5).state;
     expect(state.turn).toBe("blue");
     expect(state.current?.id).toBe("f");
     state = stand(state, "blue").state;
     expect(state.turn).toBe("red");
     expect(state.current?.id).toBe("f");
     state = hit(state, "red").state;
-    state = lock(state, "red", 0, 6).state;
+    state = lock(state, "red", 1, 6).state;
     expect(state.phase).toBe("reveal");
     expect(state.red.actualSum).toBe(4);
     expect(state.blue.actualSum).toBe(2);
@@ -193,13 +194,13 @@ describe("star draw", () => {
     ];
     let state = beginHand(createRoom("STAR"), questions, () => 0);
     expect(state.current).toMatchObject({ id: "a", stars: 1 });
-    state = lock(state, "red", 0, 1).state;
+    state = lock(state, "red", 1, 1).state;
     expect(state.current).toMatchObject({ id: "b", stars: 1 });
-    state = lock(state, "blue", 0, 2).state;
+    state = lock(state, "blue", 1, 2).state;
     expect(state.current).toMatchObject({ id: "c", stars: 1 });
-    state = lock(state, "red", 0, 3).state;
+    state = lock(state, "red", 1, 3).state;
     expect(state.current).toMatchObject({ id: "d", stars: 1 });
-    state = lock(state, "blue", 0, 4).state;
+    state = lock(state, "blue", 1, 4).state;
     expect(state.current?.stars).toBe(2);
     expect(state.current?.id).toBe("e");
   });
@@ -220,13 +221,13 @@ describe("star draw", () => {
   it("allows two 2-star cards in a row when that is all that remains", () => {
     const questions = [q("a", 1, 1), q("b", 1, 1), q("c", 1, 1), q("d", 1, 1), q("e", 2, 2), q("f", 2, 2)];
     let state = beginHand(createRoom("STAR"), questions, () => 0);
-    state = lock(state, "red", 0, 1).state;
-    state = lock(state, "blue", 0, 2).state;
-    state = lock(state, "red", 0, 3).state;
-    state = lock(state, "blue", 0, 4).state;
+    state = lock(state, "red", 1, 1).state;
+    state = lock(state, "blue", 1, 2).state;
+    state = lock(state, "red", 1, 3).state;
+    state = lock(state, "blue", 1, 4).state;
     expect(state.current?.stars).toBe(2);
     state = hit(state, "red").state;
-    state = lock(state, "red", 0, 5).state;
+    state = lock(state, "red", 1, 5).state;
     expect(state.current?.stars).toBe(2);
   });
 
@@ -238,5 +239,5 @@ describe("star draw", () => {
 });
 
 function lockHigh(state: RoomState, team: "red" | "blue", now: number) {
-  return submitEstimate(state, team, 0, now, () => 0.99);
+  return submitEstimate(state, team, 1, now, () => 0.99);
 }

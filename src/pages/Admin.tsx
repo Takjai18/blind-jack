@@ -131,7 +131,7 @@ export function AdminPage() {
       <p className="kicker">題庫</p>
       <h1>而家有 {questions.length} 題</h1>
       <StarStats questions={questions} />
-      <p>答案只可以係 0 到 10。開波頭四張會抽一星。清空晒之後，開波會用內置後備題。</p>
+      <p>答案只可以係 1 到 10。開波頭四張會抽一星。清空晒之後，開波會用內置後備題。</p>
       <div className="row">
         <button type="button" className="btn gold" onClick={exportFile}>
           匯出 JSON
@@ -163,7 +163,7 @@ export function AdminPage() {
           />
           <div className="row">
             <input
-              placeholder="答案（0–10）"
+              placeholder="答案（1–10）"
               inputMode="numeric"
               value={draft.answer}
               onChange={(event) => setDraft({ ...draft, answer: event.target.value })}

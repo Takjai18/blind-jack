@@ -6,6 +6,7 @@ export type Role = "display" | TeamId;
 export type Phase = "lobby" | "playing" | "reveal" | "finished";
 export type Winner = "red" | "blue" | "tie" | "both_bust" | null;
 export type Awaiting = "estimate" | "decision" | null;
+export type IntelMode = "open" | "hidden";
 
 export interface Question {
   id: string;
@@ -67,6 +68,7 @@ export interface RoomState {
   winner: Winner;
   log: string[];
   awaiting: Awaiting;
+  intel: IntelMode;
   revision: number;
 }
 
@@ -107,6 +109,7 @@ export interface ClientView {
   blue: TeamView;
   announcement: Announcement | null;
   notice: string | null;
+  intel: IntelMode;
   lastSecret: { actual: number; question: string; at: number } | null;
   winner: Winner;
   log: string[];
@@ -116,6 +119,7 @@ export interface ClientView {
 export type ClientMessage =
   | { type: "join"; payload: { clientId: string; nickname: string; role: Role } }
   | { type: "setRole"; payload: { role: Role } }
+  | { type: "setIntel"; payload: { intel: IntelMode } }
   | { type: "start" }
   | { type: "restart" }
   | { type: "reveal" }

@@ -5,15 +5,17 @@ const revealedPhase = (phase: RoomState["phase"]) => phase === "reveal" || phase
 
 /**
  * Build the only payload a socket may receive.
- * A team learns the other team's actuals immediately, and learns its own only at 揭曉.
- * The projector never receives an actual before that.
+ * In 模式一 a team learns the other team's actuals immediately, and learns its own only at 揭曉.
+ * In 模式二 nobody learns an actual until 揭曉. The projector never receives one before that.
  */
 export function projectView(state: RoomState, role: Role): ClientView {
   const revealed = revealedPhase(state.phase);
-  const redActual = revealed || role === "blue";
-  const blueActual = revealed || role === "red";
+  const intel = state.intel === "hidden" ? "hidden" : "open";
+  const share = intel === "open";
+  const redActual = revealed || (share && role === "blue");
+  const blueActual = revealed || (share && role === "red");
   const secret =
-    state.lastSecret && role === state.lastSecret.to
+    share && state.lastSecret && role === state.lastSecret.to
       ? {
           actual: state.lastSecret.actual,
           question: state.lastSecret.question,
@@ -40,6 +42,7 @@ export function projectView(state: RoomState, role: Role): ClientView {
     blue: teamView(state.blue, blueActual),
     announcement: state.announcement ? { text: state.announcement.text, at: state.announcement.at } : null,
     notice: state.notice ?? null,
+    intel,
     lastSecret: secret,
     winner: state.winner,
     log: state.log.slice(),

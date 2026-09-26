@@ -39,6 +39,7 @@ export function DisplayBoard({
           <h1 className="room-code">房號 {view.code}</h1>
           <p className="turn-line">{turnLine(view)}</p>
           <p className="status-pill">{status === "live" ? "投映已連線" : "連緊線…"}</p>
+          <ModePicker intel={view.intel} send={send} />
           <div className="lobby-teams">
             <TeamColumn team={view.red} tone="red" />
             <TeamColumn team={view.blue} tone="blue" />
@@ -69,7 +70,9 @@ export function DisplayBoard({
           </p>
           <h1 className="room-code">房號 {view.code}</h1>
           <p className="turn-line">{turnLine(view)}</p>
-          <p className="status-pill">{status === "live" ? "投映已連線" : "連緊線…"}</p>
+          <p className="status-pill">
+            {status === "live" ? "投映已連線" : "連緊線…"} · {modeLabel(view.intel)}
+          </p>
         </div>
         <JoinQr url={joinUrl} />
       </header>
@@ -129,13 +132,49 @@ export function DisplayBoard({
           </span>
         )}
         {revealed && (
-          <button type="button" className="btn gold" data-testid="restart" onClick={() => send({ type: "restart" })}>
-            再開一局
-          </button>
+          <span className="row">
+            <ModePicker intel={view.intel} send={send} />
+            <button type="button" className="btn gold" data-testid="restart" onClick={() => send({ type: "restart" })}>
+              再開一局
+            </button>
+          </span>
         )}
 
       </footer>
     </main>
+  );
+}
+
+function modeLabel(intel: "open" | "hidden") {
+  return intel === "hidden" ? "模式二：唔知對手分數" : "模式一：知道對手分數";
+}
+
+function ModePicker({
+  intel,
+  send,
+}: {
+  intel: "open" | "hidden";
+  send: (message: ClientMessage) => void;
+}) {
+  return (
+    <div className="row">
+      <button
+        type="button"
+        data-testid="mode-open"
+        className={intel === "open" ? "btn gold" : "btn ghost"}
+        onClick={() => send({ type: "setIntel", payload: { intel: "open" } })}
+      >
+        模式一：知道對手分數
+      </button>
+      <button
+        type="button"
+        data-testid="mode-hidden"
+        className={intel === "hidden" ? "btn gold" : "btn ghost"}
+        onClick={() => send({ type: "setIntel", payload: { intel: "hidden" } })}
+      >
+        模式二：唔知對手分數
+      </button>
+    </div>
   );
 }
 

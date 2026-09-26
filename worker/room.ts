@@ -3,7 +3,7 @@ import { cleanClientId, cleanNickname } from "../shared/code";
 import { bundledQuestions } from "../shared/questions";
 import { projectView } from "../shared/projectView";
 import { beginHand, createRoom, forceReveal, hit, stand, submitEstimate } from "../shared/rules";
-import type { ClientMessage, Role, RoomState, ServerMessage, TeamId } from "../shared/types";
+import type { ClientMessage, IntelMode, Role, RoomState, ServerMessage, TeamId } from "../shared/types";
 import type { Env } from "./env";
 
 interface Attachment {
@@ -114,6 +114,10 @@ export class Room extends DurableObject<Env> {
       await this.onSetRole(ws, meta, msg.payload?.role);
       return;
     }
+    if (msg.type === "setIntel") {
+      await this.onSetIntel(ws, meta, msg.payload?.intel);
+      return;
+    }
     if (msg.type === "start" || msg.type === "restart") {
       await this.onStart(ws, meta, msg.type);
       return;
@@ -173,6 +177,25 @@ export class Room extends DurableObject<Env> {
     const next = { ...meta, role };
     ws.serializeAttachment(next);
     this.applyRole(next.clientId, next.nickname, role);
+    this.state.revision += 1;
+    await this.commit(null);
+  }
+
+  private async onSetIntel(ws: WebSocket, meta: Attachment, intel: IntelMode | undefined) {
+    if (!this.state) return;
+    if (meta.role !== "display") {
+      this.send(ws, { type: "error", payload: { message: "只有投映主持可以轉模式" } });
+      return;
+    }
+    if (this.state.phase === "playing") {
+      this.send(ws, { type: "error", payload: { message: "開緊波唔可以轉模式" } });
+      return;
+    }
+    if (intel !== "open" && intel !== "hidden") {
+      this.send(ws, { type: "error", payload: { message: "訊息唔啱" } });
+      return;
+    }
+    this.state.intel = intel;
     this.state.revision += 1;
     await this.commit(null);
   }

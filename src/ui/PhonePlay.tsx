@@ -71,6 +71,7 @@ export function PhonePlay({
         <section className="panel">
           <p className="prompt">等主持開波</p>
           <p>{mine.members.map((member) => member.nickname).join("、") || "你係第一個"}</p>
+          <p>{view.intel === "hidden" ? "模式二：完場先知道對手實際分數" : "模式一：估完會見到對手實際分數"}</p>
           {onLeave && (
             <button type="button" className="btn ghost" onClick={onLeave}>
               轉角色
@@ -152,10 +153,12 @@ export function PhonePlay({
           )}
 
           <section className="intel" data-testid="intel">
-            <h2>對手真實分數（只有你哋見到）</h2>
-            <p className="actual" data-testid="opp-sum">
-              對手而家實際總分 {typeof opp.actualSum === "number" ? opp.actualSum : "—"}
-            </p>
+            <h2>{view.intel === "hidden" ? "對手估計（實際分數要完場先揭）" : "對手真實分數（只有你哋見到）"}</h2>
+            {view.intel !== "hidden" && (
+              <p className="actual" data-testid="opp-sum">
+                對手而家實際總分 {typeof opp.actualSum === "number" ? opp.actualSum : "—"}
+              </p>
+            )}
             {opp.cards.map((card) => (
               <div key={card.questionId} className="card" data-testid="opp-card">
                 <Stars value={card.stars} />

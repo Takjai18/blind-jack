@@ -1,12 +1,12 @@
 import { useState } from "react";
 
-const KEYS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 10];
+const KEYS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 export function NumPad({ disabled, onSubmit }: { disabled?: boolean; onSubmit: (value: number) => void }) {
   const [picked, setPicked] = useState<number | null>(null);
   return (
     <div>
-      <p className="prompt">你哋估呢題幾多分？（0–10）</p>
+      <p className="prompt">你哋估呢題幾多分？（1–10）</p>
       <div className="pad" style={{ marginTop: 10 }}>
         {KEYS.map((num) => (
           <button
@@ -16,7 +16,7 @@ export function NumPad({ disabled, onSubmit }: { disabled?: boolean; onSubmit: (
             className={picked === num ? "picked" : ""}
             onClick={() => setPicked(num)}
             disabled={disabled}
-            style={num === 10 ? { gridColumn: "span 2" } : undefined}
+            style={num === 10 ? { gridColumn: "1 / -1" } : undefined}
           >
             {num}
           </button>

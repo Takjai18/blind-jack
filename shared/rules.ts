@@ -30,6 +30,7 @@ export function createRoom(code: string): RoomState {
     winner: null,
     log: [],
     awaiting: null,
+    intel: "open",
     revision: 0,
   };
 }
@@ -104,8 +105,8 @@ export function submitEstimate(
   if (state.turn !== team) return fail(state, "未輪到你哋");
   if (state.awaiting !== "estimate") return fail(state, "而家未到輸入估計");
   if (!state.current) return fail(state, "未有題目");
-  if (!Number.isInteger(estimate) || estimate < 0 || estimate > 10) {
-    return fail(state, "估計要係 0 到 10 嘅整數");
+  if (!Number.isInteger(estimate) || estimate < 1 || estimate > 10) {
+    return fail(state, "估計要係 1 到 10 嘅整數");
   }
 
   const next = structuredClone(state);
@@ -122,17 +123,19 @@ export function submitEstimate(
   recount(actor);
 
   const opponent = otherTeam(team);
-  next.lastSecret = { to: opponent, actual: card.answer, question: card.question, at: now };
-  next.announcement = { text: "真實答案已送到對手手機", at: now };
+  const shareIntel = state.intel !== "hidden";
+  const secret = shareIntel ? { to: opponent, actual: card.answer, question: card.question } : null;
+  next.lastSecret = secret ? { ...secret, at: now } : null;
+  next.announcement = secret ? { text: "真實答案已送到對手手機", at: now } : null;
   pushLog(next, `${actor.name}估咗 ${estimate} 分`);
-  pushLog(next, "真實答案已送到對手手機");
+  if (secret) pushLog(next, "真實答案已送到對手手機");
 
   if (!next[opponent].stood) next.turn = opponent;
   const drawn = drawNext(next, rng);
   if (!drawn) {
     return {
       state: finish(next),
-      secret: { to: opponent, actual: card.answer, question: card.question },
+      secret,
     };
   }
   next.current = drawn;
@@ -140,7 +143,7 @@ export function submitEstimate(
   next.revision += 1;
   return {
     state: next,
-    secret: { to: opponent, actual: card.answer, question: card.question },
+    secret,
   };
 }
 
@@ -275,7 +278,7 @@ function isPlayable(q: Question): boolean {
     typeof q.question === "string" &&
     q.question.trim().length > 0 &&
     Number.isInteger(q.answer) &&
-    q.answer >= 0 &&
+    q.answer >= 1 &&
     q.answer <= 10
   );
 }

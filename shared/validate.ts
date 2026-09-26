@@ -17,8 +17,8 @@ export function validateQuestionInput(input: unknown, index?: number): QuestionF
   if (!question) throw new Error(`${where}請寫題目`);
   if (question.length > 300) throw new Error(`${where}題目太長`);
   const answer = row.answer;
-  if (typeof answer !== "number" || !Number.isInteger(answer) || answer < 0 || answer > 10) {
-    throw new Error(`${where}答案要係 0 到 10 嘅整數`);
+  if (typeof answer !== "number" || !Number.isInteger(answer) || answer < 1 || answer > 10) {
+    throw new Error(`${where}答案要係 1 到 10 嘅整數`);
   }
   if (row.stars !== undefined && row.stars !== 1 && row.stars !== 2 && row.stars !== 3) {
     throw new Error(`${where}星級要係 1、2 或 3`);
