@@ -538,6 +538,13 @@ h1 {
   font-size: 0.95rem;
 }
 
+.replay-choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .phone {
   min-height: 100dvh;
   padding:

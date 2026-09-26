@@ -119,7 +119,8 @@ export class Room extends DurableObject<Env> {
       return;
     }
     if (msg.type === "start" || msg.type === "restart") {
-      await this.onStart(ws, meta, msg.type);
+      const intel = "payload" in msg ? msg.payload?.intel : undefined;
+      await this.onStart(ws, meta, msg.type, intel);
       return;
     }
     if (msg.type === "reveal") {
@@ -200,7 +201,7 @@ export class Room extends DurableObject<Env> {
     await this.commit(null);
   }
 
-  private async onStart(ws: WebSocket, meta: Attachment, kind: "start" | "restart") {
+  private async onStart(ws: WebSocket, meta: Attachment, kind: "start" | "restart", intel?: IntelMode) {
     if (!this.state) return;
     if (meta.role !== "display") {
       this.send(ws, { type: "error", payload: { message: "只有投映主持可以開局" } });
@@ -210,6 +211,7 @@ export class Room extends DurableObject<Env> {
       this.send(ws, { type: "error", payload: { message: "而家開緊波，要用再開一局" } });
       return;
     }
+    if (intel === "open" || intel === "hidden") this.state.intel = intel;
     let questions = bundledQuestions();
     try {
       const bank = this.env.BANK.get(this.env.BANK.idFromName("QUESTION_BANK"));

@@ -132,12 +132,24 @@ export function DisplayBoard({
           </span>
         )}
         {revealed && (
-          <span className="row">
-            <ModePicker intel={view.intel} send={send} />
-            <button type="button" className="btn gold" data-testid="restart" onClick={() => send({ type: "restart" })}>
-              再開一局
+          <div className="replay-choice">
+            <button type="button" className="btn gold" data-testid="replay-keep" onClick={() => send({ type: "restart" })}>
+              {view.intel === "hidden" ? "保持模式二：唔知對手分數" : "保持模式一：知道對手分數"}
             </button>
-          </span>
+            <button
+              type="button"
+              className="btn"
+              data-testid="replay-switch"
+              onClick={() =>
+                send({
+                  type: "restart",
+                  payload: { intel: view.intel === "hidden" ? "open" : "hidden" },
+                })
+              }
+            >
+              {view.intel === "hidden" ? "改為模式一：知道對手分數" : "改為模式二：唔知對手分數"}
+            </button>
+          </div>
         )}
 
       </footer>

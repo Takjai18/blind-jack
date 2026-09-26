@@ -121,8 +121,8 @@ export type ClientMessage =
   | { type: "join"; payload: { clientId: string; nickname: string; role: Role } }
   | { type: "setRole"; payload: { role: Role } }
   | { type: "setIntel"; payload: { intel: IntelMode } }
-  | { type: "start" }
-  | { type: "restart" }
+  | { type: "start"; payload?: { intel?: IntelMode } }
+  | { type: "restart"; payload?: { intel?: IntelMode } }
   | { type: "reveal" }
   | { type: "submitEstimate"; payload: { estimate: number } }
   | { type: "hit" }
