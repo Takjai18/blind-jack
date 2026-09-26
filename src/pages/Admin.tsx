@@ -130,11 +130,8 @@ export function AdminPage() {
     <main className="admin">
       <p className="kicker">題庫</p>
       <h1>而家有 {questions.length} 題</h1>
-      <p>
-        答案只可以係 0 到 10。星級：1星 {questions.filter((row) => (row.stars ?? 1) === 1).length} 題、2星{" "}
-        {questions.filter((row) => row.stars === 2).length} 題、3星 {questions.filter((row) => row.stars === 3).length}{" "}
-        題。開波頭四張會抽 1 星。清空晒之後，開波會用內置後備題。
-      </p>
+      <StarStats questions={questions} />
+      <p>答案只可以係 0 到 10。開波頭四張會抽一星。清空晒之後，開波會用內置後備題。</p>
       <div className="row">
         <button type="button" className="btn gold" onClick={exportFile}>
           匯出 JSON
@@ -199,6 +196,38 @@ export function AdminPage() {
         </button>
       )}
     </main>
+  );
+}
+
+function StarStats({ questions }: { questions: Question[] }) {
+  const counts = {
+    1: questions.filter((row) => row.stars !== 2 && row.stars !== 3).length,
+    2: questions.filter((row) => row.stars === 2).length,
+    3: questions.filter((row) => row.stars === 3).length,
+  };
+  return (
+    <section className="star-stats" aria-label="星級統計">
+      {(
+        [
+          [1, "一星"],
+          [2, "二星"],
+          [3, "三星"],
+        ] as const
+      ).map(([stars, label]) => (
+        <div key={stars} className="star-stat">
+          <p className="stars" aria-hidden="true">
+            {"★".repeat(stars)}
+            <span className="stars-off">{"☆".repeat(3 - stars)}</span>
+          </p>
+          <p className="star-stat-label">{label}</p>
+          <p className="star-stat-count">
+            {counts[stars]}
+            <span> 題</span>
+          </p>
+        </div>
+      ))}
+      {counts[1] < 4 && <p className="notice">一星未夠 4 題，開波熱身可能要用到二星。</p>}
+    </section>
   );
 }
 

@@ -702,6 +702,42 @@ h1 {
   max-width: 860px;
 }
 
+.star-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+
+.star-stat {
+  background: var(--ink-2);
+  border-radius: 16px;
+  padding: 14px;
+}
+
+.star-stat-label {
+  margin: 6px 0 0;
+  font-weight: 800;
+}
+
+.star-stat-count {
+  margin: 4px 0 0;
+  font-size: clamp(2rem, 5vw, 3rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.star-stat-count span {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.star-stats .notice {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .q-list {
   display: flex;
   flex-direction: column;
