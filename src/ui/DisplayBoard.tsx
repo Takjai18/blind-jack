@@ -95,11 +95,9 @@ export function DisplayBoard({
             <h2 className="question">{view.current?.question ?? "等緊下一題"}</h2>
             {view.notice && <p className="notice">{view.notice}</p>}
             <p className="status-line" data-testid="status-line">
-              {view.timedOut
-                ? "時間到，請隊長即刻入答案"
-                : view.awaiting === "decision"
-                  ? "要牌定停牌？"
-                  : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
+              {view.awaiting === "decision"
+                ? "要牌定停牌？"
+                : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
             </p>
             {banner && <p className="flash">真實答案已送到對手手機</p>}
           </section>

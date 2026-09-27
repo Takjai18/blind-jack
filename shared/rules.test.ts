@@ -238,7 +238,7 @@ describe("star draw", () => {
     expect(state.deadline).toBe(65_000);
   });
 
-  it("stands when time runs out after two cards", () => {
+  it("counts a timed-out answer as 10", () => {
     let state = beginHand(createRoom("TIME"), [q("a", 1), q("b", 1), q("c", 1), q("d", 1), q("e", 2, 2)], () => 0, 0);
     state = submitEstimate(state, "red", 1, 10, () => 0).state;
     state = submitEstimate(state, "blue", 1, 20, () => 0).state;
@@ -246,17 +246,17 @@ describe("star draw", () => {
     state = submitEstimate(state, "blue", 1, 40, () => 0).state;
     expect(state.awaiting).toBe("decision");
     const expired = expireQuestion(state, state.deadline ?? 0).state;
-    expect(expired.red.stood).toBe(true);
+    expect(expired.red.cards.at(-1)?.estimate).toBe(10);
+    expect(expired.red.stood).toBe(false);
     expect(expired.turn).toBe("blue");
-    expect(expired.deadline).toBe((state.deadline ?? 0) + 60_000);
   });
 
-  it("keeps a mandatory estimate open when time runs out", () => {
+  it("counts a timed-out first card as an estimate of 10", () => {
     const state = beginHand(createRoom("TIME"), [q("a", 4), q("b", 5)], () => 0, 0);
     const expired = expireQuestion(state, state.deadline ?? 0).state;
-    expect(expired.timedOut).toBe(true);
-    expect(expired.current?.id).toBe("a");
-    expect(expired.red.cards).toHaveLength(0);
+    expect(expired.red.cards).toEqual([expect.objectContaining({ questionId: "a", estimate: 10, actual: 4 })]);
+    expect(expired.current?.id).toBe("b");
+    expect(expired.turn).toBe("blue");
   });
 
   it("avoids questions already shown when the same room plays again", () => {

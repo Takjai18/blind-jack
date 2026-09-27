@@ -197,20 +197,12 @@ export function expireQuestion(state: RoomState, now = Date.now()): StepResult {
   if (state.phase !== "playing" || !state.current || !state.deadline) return { state, secret: null };
   if (now + 250 < state.deadline) return fail(state, "時間未到");
   const team = state.turn;
-  if (state[team].cards.length >= 2) {
-    const next = structuredClone(state);
-    next.deadline = null;
-    next.timedOut = false;
-    if (next.awaiting === "estimate") next.awaiting = "decision";
-    pushLog(next, "時間到");
-    return stand(next, team, now);
-  }
   const next = structuredClone(state);
   next.deadline = null;
-  next.timedOut = true;
-  pushLog(next, `時間到，${next[team].name}請即刻入答案`);
-  next.revision += 1;
-  return { state: next, secret: null };
+  next.timedOut = false;
+  next.awaiting = "estimate";
+  pushLog(next, "時間到");
+  return submitEstimate(next, team, 10, now);
 }
 
 export function forceReveal(state: RoomState): StepResult {
