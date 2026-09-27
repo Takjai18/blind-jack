@@ -10,6 +10,7 @@ export function PhonePlay({
   view,
   secret,
   status,
+  clientId,
   send,
   onLeave,
 }: {
@@ -17,6 +18,7 @@ export function PhonePlay({
   view: ClientView;
   secret: SecretEvent | null;
   status: "connecting" | "live" | "closed";
+  clientId: string;
   send: (message: ClientMessage) => void;
   onLeave?: () => void;
 }) {
@@ -27,6 +29,8 @@ export function PhonePlay({
   const opp = team === "red" ? view.blue : view.red;
   const myTurn = view.turn === team;
   const revealed = view.phase === "reveal" || view.phase === "finished";
+  const iAmCaptain = mine.captainId === clientId;
+  const captainName = mine.members.find((member) => member.id === mine.captainId)?.nickname;
 
   useEffect(() => {
     setBusy(false);
@@ -64,13 +68,22 @@ export function PhonePlay({
       <header>
         <p className="kicker">盲猜21點 · 房號 {view.code}</p>
         <h1>{mine.name}</h1>
-        <p className="status-pill">{status === "live" ? "已連線" : "連緊線…"}</p>
+        <p className="status-pill">
+          {status === "live" ? "已連線" : "連緊線…"}
+          {iAmCaptain ? " · 你係隊長" : captainName ? ` · 隊長：${captainName}` : " · 未定隊長"}
+        </p>
       </header>
 
       {view.phase === "lobby" && (
         <section className="panel">
           <p className="prompt">等主持開波</p>
-          <p>{mine.members.map((member) => member.nickname).join("、") || "你係第一個"}</p>
+          <p>{mine.members.map((member) => (member.id === mine.captainId ? `${member.nickname}（隊長）` : member.nickname)).join("、") || "你係第一個"}</p>
+          <p>{captainName ? `隊長：${captainName}` : "未定隊長"}</p>
+          {!iAmCaptain && (
+            <button type="button" className="btn gold" data-testid="claim-captain" onClick={() => send({ type: "claimCaptain" })}>
+              我做隊長
+            </button>
+          )}
           <p>{view.intel === "hidden" ? "模式二：完場先知道對手實際分數" : "模式一：估完會見到對手實際分數"}</p>
           {onLeave && (
             <button type="button" className="btn ghost" onClick={onLeave}>
@@ -81,6 +94,11 @@ export function PhonePlay({
       )}
 
       {revealed && <RevealBoard view={view} />}
+      {revealed && !iAmCaptain && (
+        <button type="button" className="btn gold" onClick={() => send({ type: "claimCaptain" })}>
+          我做隊長
+        </button>
+      )}
 
       {view.phase === "playing" && (
         <>
@@ -94,7 +112,7 @@ export function PhonePlay({
               {view.notice && <p className="hint">{view.notice}</p>}
             </section>
           )}
-          {myTurn && view.awaiting === "estimate" && (
+          {myTurn && iAmCaptain && view.awaiting === "estimate" && (
             <NumPad
               disabled={busy || status !== "live"}
               onSubmit={(estimate) => {
@@ -103,7 +121,13 @@ export function PhonePlay({
               }}
             />
           )}
-          {myTurn && view.awaiting === "decision" && (
+          {myTurn && !iAmCaptain && (
+            <section className="panel">
+              <p className="prompt">{captainName ? `等隊長 ${captainName} 入答案` : "等主持指定隊長"}</p>
+              <p className="hint">隊員可以一齊傾，只有隊長可以撳。</p>
+            </section>
+          )}
+          {myTurn && iAmCaptain && view.awaiting === "decision" && (
             <section className="choice">
               <p className="prompt">要牌定停牌？</p>
               <div className="row" style={{ marginTop: 10 }}>

@@ -41,14 +41,21 @@ export function DisplayBoard({
           <p className="status-pill">{status === "live" ? "投映已連線" : "連緊線…"}</p>
           <ModePicker intel={view.intel} send={send} />
           <div className="lobby-teams">
-            <TeamColumn team={view.red} tone="red" />
-            <TeamColumn team={view.blue} tone="blue" />
+            <TeamColumn team={view.red} tone="red" send={send} />
+            <TeamColumn team={view.blue} tone="blue" send={send} />
           </div>
         </section>
         <JoinQr url={joinUrl} large />
         <footer className="board-foot">
           {localHost && <p className="warn">而家用緊 localhost，手機掃碼會入唔到。請用電腦嘅區網網址開投映。</p>}
-          <button type="button" className="btn gold" data-testid="start-game" onClick={() => send({ type: "start" })}>
+          {captainGap(view) && <p className="warn">{captainGap(view)}</p>}
+          <button
+            type="button"
+            className="btn gold"
+            data-testid="start-game"
+            disabled={captainGap(view) !== null}
+            onClick={() => send({ type: "start" })}
+          >
             用而家題庫開局
           </button>
           {onLeave && (
@@ -93,8 +100,8 @@ export function DisplayBoard({
 
         {playing && (
           <section className="columns">
-            <TeamColumn team={view.red} tone="red" />
-            <TeamColumn team={view.blue} tone="blue" />
+            <TeamColumn team={view.red} tone="red" send={send} />
+            <TeamColumn team={view.blue} tone="blue" send={send} />
           </section>
         )}
 
@@ -241,7 +248,21 @@ function turnLine(view: ClientView): string {
   return `而家輪到${view.turn === "red" ? "紅隊" : "藍隊"}`;
 }
 
-function TeamColumn({ team, tone }: { team: TeamView; tone: "red" | "blue" }) {
+function captainGap(view: ClientView): string | null {
+  if (view.red.members.length > 0 && !view.red.captainId) return "紅隊未定隊長";
+  if (view.blue.members.length > 0 && !view.blue.captainId) return "藍隊未定隊長";
+  return null;
+}
+
+function TeamColumn({
+  team,
+  tone,
+  send,
+}: {
+  team: TeamView;
+  tone: "red" | "blue";
+  send: (message: ClientMessage) => void;
+}) {
   const cards = team.cards.map((card) => ({
     questionId: card.questionId,
     question: card.question,
@@ -254,7 +275,25 @@ function TeamColumn({ team, tone }: { team: TeamView; tone: "red" | "blue" }) {
         <h2>{team.name}</h2>
         {team.stood && <span className="stood">{team.name}停牌</span>}
       </div>
-      <p className="members">{team.members.length ? team.members.map((member) => member.nickname).join("、") : "未有人加入"}</p>
+      <p className="members">
+        {team.members.length === 0
+          ? "未有人加入"
+          : team.members.map((member) => (member.id === team.captainId ? `${member.nickname}（隊長）` : member.nickname)).join("、")}
+      </p>
+      {team.members.length > 0 && (
+        <div className="row">
+          {team.members.map((member) => (
+            <button
+              key={member.id}
+              type="button"
+              className={member.id === team.captainId ? "btn gold" : "btn ghost"}
+              onClick={() => send({ type: "setCaptain", payload: { team: team.id, clientId: member.id } })}
+            >
+              {member.id === team.captainId ? `${member.nickname}係隊長` : `換 ${member.nickname} 做隊長`}
+            </button>
+          ))}
+        </div>
+      )}
       {cards.map((card) => (
         <div key={card.questionId} className="card" data-testid="public-card">
           <Stars value={card.stars} />

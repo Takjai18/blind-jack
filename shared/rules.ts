@@ -227,7 +227,7 @@ function fail(state: RoomState, error: string): StepResult {
 }
 
 function emptyTeam(id: TeamId, name: string): TeamState {
-  return { id, name, members: [], estimateSum: 0, actualSum: 0, stood: false, cards: [] };
+  return { id, name, captainId: null, members: [], estimateSum: 0, actualSum: 0, stood: false, cards: [] };
 }
 
 function drawNext(state: RoomState, rng: () => number): Question | null {

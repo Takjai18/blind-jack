@@ -120,6 +120,7 @@ function LiveRoom({
           view={room.view}
           secret={room.secret}
           status={room.status}
+          clientId={session.clientId}
           send={room.send}
           onLeave={room.view.phase === "lobby" ? leave : undefined}
         />

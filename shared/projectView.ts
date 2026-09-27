@@ -64,6 +64,7 @@ function teamView(team: TeamState, showActual: boolean): TeamView {
   const view: TeamView = {
     id: team.id,
     name: team.name,
+    captainId: team.captainId ?? null,
     members: team.members.map((member) => ({ id: member.id, nickname: member.nickname })),
     estimateSum: team.estimateSum,
     stood: team.stood,

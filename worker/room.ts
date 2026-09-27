@@ -118,6 +118,14 @@ export class Room extends DurableObject<Env> {
       await this.onSetIntel(ws, meta, msg.payload?.intel);
       return;
     }
+    if (msg.type === "claimCaptain") {
+      await this.onClaimCaptain(ws, meta);
+      return;
+    }
+    if (msg.type === "setCaptain") {
+      await this.onSetCaptain(ws, meta, msg.payload?.team, msg.payload?.clientId);
+      return;
+    }
     if (msg.type === "start" || msg.type === "restart") {
       const intel = "payload" in msg ? msg.payload?.intel : undefined;
       await this.onStart(ws, meta, msg.type, intel);
@@ -212,6 +220,14 @@ export class Room extends DurableObject<Env> {
       return;
     }
     if (intel === "open" || intel === "hidden") this.state.intel = intel;
+    for (const id of ["red", "blue"] as const) {
+      const team = this.state[id];
+      if (team.members.length === 0) continue;
+      if (!team.captainId || !team.members.some((member) => member.id === team.captainId)) {
+        this.send(ws, { type: "error", payload: { message: `${team.name}未定隊長` } });
+        return;
+      }
+    }
     let questions = bundledQuestions();
     try {
       const bank = this.env.BANK.get(this.env.BANK.idFromName("QUESTION_BANK"));
@@ -250,6 +266,10 @@ export class Room extends DurableObject<Env> {
       this.send(ws, { type: "error", payload: { message: "呢部機係投映，唔使入估計" } });
       return;
     }
+    if (this.state[meta.role].captainId !== meta.clientId) {
+      this.send(ws, { type: "error", payload: { message: "只有隊長可以入答案" } });
+      return;
+    }
     const result =
       msg.type === "hit"
         ? hit(this.state, meta.role)
@@ -278,7 +298,9 @@ export class Room extends DurableObject<Env> {
     if (!this.state) return;
     this.removeMember(clientId);
     if (role === "red" || role === "blue") {
-      this.state[role].members.push({ id: clientId, nickname });
+      const team = this.state[role];
+      team.members.push({ id: clientId, nickname });
+      if (this.state.phase !== "playing" && !team.captainId) team.captainId = clientId;
     }
     if (role === "display" && !this.state.hostId) this.state.hostId = clientId;
   }
@@ -286,8 +308,52 @@ export class Room extends DurableObject<Env> {
   private removeMember(clientId: string) {
     if (!this.state) return;
     for (const team of ["red", "blue"] as const) {
-      this.state[team].members = this.state[team].members.filter((member) => member.id !== clientId);
+      const side = this.state[team];
+      const wasHere = side.members.some((member) => member.id === clientId);
+      side.members = side.members.filter((member) => member.id !== clientId);
+      if (!wasHere || side.captainId !== clientId || this.state.phase === "playing") continue;
+      side.captainId = side.members[0]?.id ?? null;
     }
+  }
+
+  private async onClaimCaptain(ws: WebSocket, meta: Attachment) {
+    if (!this.state) return;
+    if (meta.role !== "red" && meta.role !== "blue") {
+      this.send(ws, { type: "error", payload: { message: "投映唔使做隊長" } });
+      return;
+    }
+    if (this.state.phase === "playing") {
+      this.send(ws, { type: "error", payload: { message: "開咗波只可以由主持換隊長" } });
+      return;
+    }
+    const team = this.state[meta.role];
+    if (!team.members.some((member) => member.id === meta.clientId)) {
+      this.send(ws, { type: "error", payload: { message: "你唔喺呢一隊" } });
+      return;
+    }
+    team.captainId = meta.clientId;
+    this.state.revision += 1;
+    await this.commit(null);
+  }
+
+  private async onSetCaptain(ws: WebSocket, meta: Attachment, teamId: TeamId | undefined, clientId: string | undefined) {
+    if (!this.state) return;
+    if (meta.role !== "display") {
+      this.send(ws, { type: "error", payload: { message: "只有投映主持可以換隊長" } });
+      return;
+    }
+    if ((teamId !== "red" && teamId !== "blue") || !clientId) {
+      this.send(ws, { type: "error", payload: { message: "訊息唔啱" } });
+      return;
+    }
+    const team = this.state[teamId];
+    if (!team.members.some((member) => member.id === clientId)) {
+      this.send(ws, { type: "error", payload: { message: "呢位隊員唔喺度" } });
+      return;
+    }
+    team.captainId = clientId;
+    this.state.revision += 1;
+    await this.commit(null);
   }
 
   private currentRole(clientId: string): Role | null {
