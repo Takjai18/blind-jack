@@ -71,6 +71,9 @@ export interface RoomState {
   awaiting: Awaiting;
   intel: IntelMode;
   seenIds: string[];
+  timeLimitMs: number | null;
+  deadline: number | null;
+  timedOut: boolean;
   revision: number;
 }
 
@@ -113,6 +116,9 @@ export interface ClientView {
   announcement: Announcement | null;
   notice: string | null;
   intel: IntelMode;
+  timeLimitMs: number | null;
+  deadline: number | null;
+  timedOut: boolean;
   lastSecret: { actual: number; question: string; at: number } | null;
   winner: Winner;
   log: string[];
@@ -123,6 +129,8 @@ export type ClientMessage =
   | { type: "join"; payload: { clientId: string; nickname: string; role: Role } }
   | { type: "setRole"; payload: { role: Role } }
   | { type: "setIntel"; payload: { intel: IntelMode } }
+  | { type: "setTimeLimit"; payload: { seconds: number | null } }
+  | { type: "expire" }
   | { type: "claimCaptain" }
   | { type: "setCaptain"; payload: { team: TeamId; clientId: string } }
   | { type: "start"; payload?: { intel?: IntelMode } }

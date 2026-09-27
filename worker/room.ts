@@ -2,7 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { cleanClientId, cleanNickname } from "../shared/code";
 import { bundledQuestions } from "../shared/questions";
 import { projectView } from "../shared/projectView";
-import { beginHand, createRoom, forceReveal, hit, stand, submitEstimate } from "../shared/rules";
+import { beginHand, createRoom, expireQuestion, forceReveal, hit, stand, submitEstimate } from "../shared/rules";
 import type { ClientMessage, IntelMode, Role, RoomState, ServerMessage, TeamId } from "../shared/types";
 import type { Env } from "./env";
 
@@ -118,6 +118,14 @@ export class Room extends DurableObject<Env> {
       await this.onSetIntel(ws, meta, msg.payload?.intel);
       return;
     }
+    if (msg.type === "setTimeLimit") {
+      await this.onSetTimeLimit(ws, meta, msg.payload?.seconds);
+      return;
+    }
+    if (msg.type === "expire") {
+      await this.onExpire();
+      return;
+    }
     if (msg.type === "claimCaptain") {
       await this.onClaimCaptain(ws, meta);
       return;
@@ -207,6 +215,40 @@ export class Room extends DurableObject<Env> {
     this.state.intel = intel;
     this.state.revision += 1;
     await this.commit(null);
+  }
+
+  private async onSetTimeLimit(ws: WebSocket, meta: Attachment, seconds: number | null | undefined) {
+    if (!this.state) return;
+    if (meta.role !== "display") {
+      this.send(ws, { type: "error", payload: { message: "只有投映主持可以改時限" } });
+      return;
+    }
+    if (this.state.phase === "playing") {
+      this.send(ws, { type: "error", payload: { message: "開緊波唔可以改時限" } });
+      return;
+    }
+    if (seconds === null) {
+      this.state.timeLimitMs = null;
+    } else if (typeof seconds === "number" && Number.isInteger(seconds) && seconds >= 5 && seconds <= 600) {
+      this.state.timeLimitMs = seconds * 1000;
+    } else {
+      this.send(ws, { type: "error", payload: { message: "自訂時限要係 5 到 600 秒" } });
+      return;
+    }
+    this.state.revision += 1;
+    await this.commit(null);
+  }
+
+  private async onExpire() {
+    if (!this.state) return;
+    const result = expireQuestion(this.state, Date.now());
+    if (result.error || result.state === this.state) return;
+    this.state = result.state;
+    await this.commit(result.secret);
+  }
+
+  async alarm() {
+    await this.onExpire();
   }
 
   private async onStart(ws: WebSocket, meta: Attachment, kind: "start" | "restart", intel?: IntelMode) {
@@ -373,6 +415,9 @@ export class Room extends DurableObject<Env> {
   private async commit(secret: { to: TeamId; actual: number; question: string } | null) {
     if (!this.state) return;
     await this.ctx.storage.put("state", this.state);
+    const deadline = this.state.phase === "playing" ? this.state.deadline : null;
+    if (deadline) await this.ctx.storage.setAlarm(deadline);
+    else await this.ctx.storage.deleteAlarm();
     this.broadcast(secret);
   }
 

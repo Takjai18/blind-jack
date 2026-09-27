@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ClientMessage, ClientView, TeamId } from "../../shared/types";
 import type { SecretEvent } from "../useRoom";
 import { NumPad } from "./NumPad";
+import { QuestionTimer } from "./Timer";
 import { RevealBoard } from "./Reveal";
 import { Stars } from "./Stars";
 
@@ -102,6 +103,7 @@ export function PhonePlay({
 
       {view.phase === "playing" && (
         <>
+          <QuestionTimer deadline={view.deadline} timedOut={view.timedOut} limitMs={view.timeLimitMs} send={send} />
           {myTurn && view.current && (
             <section>
               <Stars value={view.current.stars} />
@@ -123,7 +125,9 @@ export function PhonePlay({
           )}
           {myTurn && !iAmCaptain && (
             <section className="panel">
-              <p className="prompt">{captainName ? `等隊長 ${captainName} 入答案` : "等主持指定隊長"}</p>
+              <p className="prompt">
+                {view.timedOut ? "時間到，等隊長即刻入答案" : captainName ? `等隊長 ${captainName} 入答案` : "等主持指定隊長"}
+              </p>
               <p className="hint">隊員可以一齊傾，只有隊長可以撳。</p>
             </section>
           )}

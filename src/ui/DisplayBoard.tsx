@@ -4,6 +4,7 @@ import type { ClientView, TeamView } from "../../shared/types";
 import type { ClientMessage } from "../../shared/types";
 import { RevealBoard } from "./Reveal";
 import { Stars } from "./Stars";
+import { QuestionTimer } from "./Timer";
 import { Track } from "./Track";
 
 export function DisplayBoard({
@@ -40,6 +41,7 @@ export function DisplayBoard({
           <p className="turn-line">{turnLine(view)}</p>
           <p className="status-pill">{status === "live" ? "投映已連線" : "連緊線…"}</p>
           <ModePicker intel={view.intel} send={send} />
+          <TimePicker limitMs={view.timeLimitMs} send={send} />
           <div className="lobby-teams">
             <TeamColumn team={view.red} tone="red" send={send} />
             <TeamColumn team={view.blue} tone="blue" send={send} />
@@ -89,10 +91,15 @@ export function DisplayBoard({
           <section className="question-block">
             {view.current && <Stars value={view.current.stars} />}
             {view.current?.category && <p className="category">{view.current.category}</p>}
+            <QuestionTimer deadline={view.deadline} timedOut={view.timedOut} limitMs={view.timeLimitMs} send={send} />
             <h2 className="question">{view.current?.question ?? "等緊下一題"}</h2>
             {view.notice && <p className="notice">{view.notice}</p>}
             <p className="status-line" data-testid="status-line">
-              {view.awaiting === "decision" ? "要牌定停牌？" : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
+              {view.timedOut
+                ? "時間到，請隊長即刻入答案"
+                : view.awaiting === "decision"
+                  ? "要牌定停牌？"
+                  : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
             </p>
             {banner && <p className="flash">真實答案已送到對手手機</p>}
           </section>
@@ -138,6 +145,7 @@ export function DisplayBoard({
             </button>
           </span>
         )}
+        {revealed && <TimePicker limitMs={view.timeLimitMs} send={send} />}
         {revealed && (
           <div className="replay-choice">
             <button type="button" className="btn gold" data-testid="replay-keep" onClick={() => send({ type: "restart" })}>
@@ -161,6 +169,41 @@ export function DisplayBoard({
 
       </footer>
     </main>
+  );
+}
+
+function TimePicker({ limitMs, send }: { limitMs: number | null; send: (message: ClientMessage) => void }) {
+  const [custom, setCustom] = useState("");
+  const seconds = limitMs === null ? null : Math.round(limitMs / 1000);
+  const pick = (value: number | null) => send({ type: "setTimeLimit", payload: { seconds: value } });
+  const chosen = (value: number | null) => (seconds === value ? "btn gold" : "btn ghost");
+  return (
+    <div className="time-picker">
+      <p className="kicker">每題時限</p>
+      <div className="row">
+        <button type="button" className={chosen(null)} onClick={() => pick(null)}>
+          無時限
+        </button>
+        <button type="button" className={chosen(30)} data-testid="time-30" onClick={() => pick(30)}>
+          30秒
+        </button>
+        <button type="button" className={chosen(60)} data-testid="time-60" onClick={() => pick(60)}>
+          1分鐘
+        </button>
+      </div>
+      <div className="row">
+        <input
+          inputMode="numeric"
+          placeholder="自訂秒數"
+          aria-label="自訂秒數"
+          value={custom}
+          onChange={(event) => setCustom(event.target.value.replace(/[^\d]/g, "").slice(0, 3))}
+        />
+        <button type="button" className="btn" data-testid="time-custom" onClick={() => pick(Number(custom))}>
+          自訂
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import type { Question, RoomState } from "./types";
 import {
   beginHand,
   createRoom,
+  expireQuestion,
   forceReveal,
   hit,
   judge,
@@ -229,6 +230,33 @@ describe("star draw", () => {
     state = hit(state, "red").state;
     state = lock(state, "red", 1, 5).state;
     expect(state.current?.stars).toBe(2);
+  });
+
+  it("starts each question with a one minute deadline", () => {
+    const state = beginHand(createRoom("TIME"), [q("a", 4), q("b", 5)], () => 0, 5_000);
+    expect(state.timeLimitMs).toBe(60_000);
+    expect(state.deadline).toBe(65_000);
+  });
+
+  it("stands when time runs out after two cards", () => {
+    let state = beginHand(createRoom("TIME"), [q("a", 1), q("b", 1), q("c", 1), q("d", 1), q("e", 2, 2)], () => 0, 0);
+    state = submitEstimate(state, "red", 1, 10, () => 0).state;
+    state = submitEstimate(state, "blue", 1, 20, () => 0).state;
+    state = submitEstimate(state, "red", 1, 30, () => 0).state;
+    state = submitEstimate(state, "blue", 1, 40, () => 0).state;
+    expect(state.awaiting).toBe("decision");
+    const expired = expireQuestion(state, state.deadline ?? 0).state;
+    expect(expired.red.stood).toBe(true);
+    expect(expired.turn).toBe("blue");
+    expect(expired.deadline).toBe((state.deadline ?? 0) + 60_000);
+  });
+
+  it("keeps a mandatory estimate open when time runs out", () => {
+    const state = beginHand(createRoom("TIME"), [q("a", 4), q("b", 5)], () => 0, 0);
+    const expired = expireQuestion(state, state.deadline ?? 0).state;
+    expect(expired.timedOut).toBe(true);
+    expect(expired.current?.id).toBe("a");
+    expect(expired.red.cards).toHaveLength(0);
   });
 
   it("avoids questions already shown when the same room plays again", () => {

@@ -389,6 +389,30 @@ h1 {
   font-weight: 800;
 }
 
+.timer {
+  margin: 0;
+  font-size: clamp(2.4rem, 7vw, 5rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+}
+
+.timer.danger {
+  color: var(--danger);
+}
+
+.time-picker input {
+  width: 8rem;
+  min-height: 48px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  padding: 10px 12px;
+  font-size: 16px;
+  background: white;
+  color: var(--ink);
+}
+
 .status-line {
   margin: 8px 0 0;
   font-size: clamp(1.3rem, 2.5vw, 2rem);

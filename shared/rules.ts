@@ -32,6 +32,9 @@ export function createRoom(code: string): RoomState {
     awaiting: null,
     intel: "open",
     seenIds: [],
+    timeLimitMs: 60_000,
+    deadline: null,
+    timedOut: false,
     revision: 0,
   };
 }
@@ -65,6 +68,7 @@ export function beginHand(
   state: RoomState,
   questions: Question[],
   rng: () => number = Math.random,
+  now = Date.now(),
 ): RoomState {
   const usable = questions.filter(isPlayable).map(copyQuestion);
   if (usable.length === 0) throw new Error("題庫係空嘅");
@@ -91,6 +95,7 @@ export function beginHand(
   if (!current) throw new Error("題庫係空嘅");
   next.current = current;
   if (recycling && !next.notice) next.notice = "題目出完一輪，而家會再出過";
+  armTimer(next, now);
   next.revision += 1;
   for (const id of ["red", "blue"] as const) {
     next[id].cards = [];
@@ -147,6 +152,7 @@ export function submitEstimate(
   }
   next.current = drawn;
   next.awaiting = awaitingFor(next);
+  armTimer(next, now);
   next.revision += 1;
   return {
     state: next,
@@ -166,7 +172,7 @@ export function hit(state: RoomState, team: TeamId): StepResult {
   return { state: next, secret: null };
 }
 
-export function stand(state: RoomState, team: TeamId): StepResult {
+export function stand(state: RoomState, team: TeamId, now = Date.now()): StepResult {
   if (state.phase !== "playing") return fail(state, "而家未開波");
   if (state.turn !== team) return fail(state, "未輪到你哋");
   if (state[team].cards.length < 2) return fail(state, "前兩張一定要估，未可以停牌");
@@ -182,6 +188,27 @@ export function stand(state: RoomState, team: TeamId): StepResult {
   }
   next.turn = opponent;
   next.awaiting = awaitingFor(next);
+  armTimer(next, now);
+  next.revision += 1;
+  return { state: next, secret: null };
+}
+
+export function expireQuestion(state: RoomState, now = Date.now()): StepResult {
+  if (state.phase !== "playing" || !state.current || !state.deadline) return { state, secret: null };
+  if (now + 250 < state.deadline) return fail(state, "時間未到");
+  const team = state.turn;
+  if (state[team].cards.length >= 2) {
+    const next = structuredClone(state);
+    next.deadline = null;
+    next.timedOut = false;
+    if (next.awaiting === "estimate") next.awaiting = "decision";
+    pushLog(next, "時間到");
+    return stand(next, team, now);
+  }
+  const next = structuredClone(state);
+  next.deadline = null;
+  next.timedOut = true;
+  pushLog(next, `時間到，${next[team].name}請即刻入答案`);
   next.revision += 1;
   return { state: next, secret: null };
 }
@@ -194,10 +221,18 @@ export function forceReveal(state: RoomState): StepResult {
   return { state: finish(structuredClone(state)), secret: null };
 }
 
+function armTimer(state: RoomState, now: number) {
+  const limit = state.timeLimitMs === undefined ? 60_000 : state.timeLimitMs;
+  state.timedOut = false;
+  state.deadline = typeof limit === "number" && limit > 0 ? now + limit : null;
+}
+
 function finish(state: RoomState): RoomState {
   state.phase = "reveal";
   state.current = null;
   state.awaiting = null;
+  state.deadline = null;
+  state.timedOut = false;
   state.winner = judge(state.red.actualSum, state.blue.actualSum);
   pushLog(state, winnerLine(state.winner));
   state.revision += 1;
