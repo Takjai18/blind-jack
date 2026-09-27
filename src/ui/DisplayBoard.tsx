@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
-import type { ClientView, TeamView } from "../../shared/types";
-import type { ClientMessage } from "../../shared/types";
-import { RevealBoard } from "./Reveal";
+import { winnerLine } from "../../shared/rules";
+import type { ClientMessage, ClientView, TeamId, TeamView } from "../../shared/types";
+import { TeamPanel } from "./Reveal";
 import { Stars } from "./Stars";
 import { QuestionTimer } from "./Timer";
-import { Track } from "./Track";
 
 export function DisplayBoard({
   view,
@@ -20,6 +19,7 @@ export function DisplayBoard({
 }) {
   const [banner, setBanner] = useState(false);
   const [confirmEnd, setConfirmEnd] = useState(false);
+  const [captainsOpen, setCaptainsOpen] = useState(false);
   const joinUrl = `${location.origin}/r/${view.code}`;
   const playing = view.phase === "playing";
   const revealed = view.phase === "reveal" || view.phase === "finished";
@@ -32,141 +32,263 @@ export function DisplayBoard({
     return () => window.clearTimeout(timer);
   }, [view.announcement?.at, view.phase]);
 
+  useEffect(() => {
+    if (!captainsOpen) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCaptainsOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [captainsOpen]);
+
+  const drawer = (
+    <CaptainDrawer
+      open={captainsOpen}
+      view={view}
+      send={send}
+      onClose={() => setCaptainsOpen(false)}
+    />
+  );
+
   if (view.phase === "lobby") {
     return (
-      <main className="lobby-board">
-        <section className="lobby-side">
-          <p className="kicker">盲猜21點</p>
-          <h1 className="room-code">房號 {view.code}</h1>
-          <p className="turn-line">{turnLine(view)}</p>
-          <p className="status-pill">{status === "live" ? "投映已連線" : "連緊線…"}</p>
-          <ModePicker intel={view.intel} send={send} />
-          <TimePicker limitMs={view.timeLimitMs} send={send} />
-          <div className="lobby-teams">
-            <TeamColumn team={view.red} tone="red" send={send} />
-            <TeamColumn team={view.blue} tone="blue" send={send} />
-          </div>
-        </section>
-        <JoinQr url={joinUrl} large />
-        <footer className="board-foot">
-          {localHost && <p className="warn">而家用緊 localhost，手機掃碼會入唔到。請用電腦嘅區網網址開投映。</p>}
-          {captainGap(view) && <p className="warn">{captainGap(view)}</p>}
-          <button
-            type="button"
-            className="btn gold"
-            data-testid="start-game"
-            disabled={captainGap(view) !== null}
-            onClick={() => send({ type: "start" })}
-          >
-            用而家題庫開局
-          </button>
-          {onLeave && (
-            <button type="button" className="btn ghost" onClick={onLeave}>
-              轉角色
+      <div className="stage-root">
+        <main className="lobby-stage">
+          <header className="stage-bar">
+            <div className="stage-brand">
+              <p className="kicker">盲猜21點</p>
+              <p className="room-code">房號 {view.code}</p>
+              <p className="status-pill">{status === "live" ? "投映已連線" : "連緊線…"}</p>
+            </div>
+            <div className="stage-actions">
+              <button
+                type="button"
+                className="btn ghost"
+                data-testid="open-captains"
+                aria-expanded={captainsOpen}
+                onClick={() => setCaptainsOpen((open) => !open)}
+              >
+                換隊長
+              </button>
+              {onLeave && (
+                <button type="button" className="btn ghost" onClick={onLeave}>
+                  轉角色
+                </button>
+              )}
+            </div>
+          </header>
+
+          <section className="lobby-main">
+            <ModePicker intel={view.intel} send={send} />
+            <TimePicker limitMs={view.timeLimitMs} send={send} />
+            <div className="score-row">
+              <LobbyTeam team={view.red} tone="red" />
+              <LobbyTeam team={view.blue} tone="blue" />
+            </div>
+            {localHost && <p className="warn">而家用緊 localhost，手機掃碼會入唔到。請用電腦嘅區網網址開投映。</p>}
+            {captainGap(view) && <p className="warn">{captainGap(view)}</p>}
+          </section>
+
+          <JoinQr url={joinUrl} large />
+
+          <footer className="stage-foot">
+            <button
+              type="button"
+              className="btn gold wide"
+              data-testid="start-game"
+              disabled={captainGap(view) !== null}
+              onClick={() => send({ type: "start" })}
+            >
+              用而家題庫開局
             </button>
-          )}
-        </footer>
-      </main>
+          </footer>
+        </main>
+        {drawer}
+      </div>
     );
   }
 
   return (
-    <main className="board">
-      <header className="board-head">
-        <div>
-          <p className="kicker" style={{ margin: 0 }}>
-            盲猜21點
-          </p>
-          <h1 className="room-code">房號 {view.code}</h1>
-          <p className="turn-line">{turnLine(view)}</p>
-          <p className="status-pill">
-            {status === "live" ? "投映已連線" : "連緊線…"} · {modeLabel(view.intel)}
-          </p>
-        </div>
-        <JoinQr url={joinUrl} />
-      </header>
-
-      <div className="board-main">
-        {playing && (
-          <section className="question-block">
-            {view.current && <Stars value={view.current.stars} />}
-            {view.current?.category && <p className="category">{view.current.category}</p>}
-            <QuestionTimer deadline={view.deadline} timedOut={view.timedOut} limitMs={view.timeLimitMs} send={send} />
-            <h2 className="question">{view.current?.question ?? "等緊下一題"}</h2>
-            {view.notice && <p className="notice">{view.notice}</p>}
-            <p className="status-line" data-testid="status-line">
-              {view.awaiting === "decision"
-                ? "要牌定停牌？"
-                : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
+    <div className="stage-root">
+      <main className={revealed ? "stage revealing" : "stage"}>
+        <header className="stage-bar">
+          <div className="stage-brand">
+            <p className="kicker">盲猜21點 · 房號 {view.code}</p>
+            <p className="turn-line">{turnLine(view)}</p>
+            <p className="status-pill">
+              {status === "live" ? "投映已連線" : "連緊線…"} · {modeLabel(view.intel)} · 仲有 {view.deckRemaining} 題
             </p>
-            {banner && <p className="flash">真實答案已送到對手手機</p>}
-          </section>
-        )}
-
-        {playing && (
-          <section className="columns">
-            <TeamColumn team={view.red} tone="red" send={send} />
-            <TeamColumn team={view.blue} tone="blue" send={send} />
-          </section>
-        )}
-
-        {revealed && <RevealBoard view={view} />}
-      </div>
-
-      {playing && (
-        <section>
-          <p className="kicker" style={{ margin: "0 0 6px" }}>
-            估分軌道（0 到 21+）
-          </p>
-          <div className="tracks">
-            <Track name="紅隊" value={view.red.estimateSum} tone="red" />
-            <Track name="藍隊" value={view.blue.estimateSum} tone="blue" />
           </div>
-        </section>
-      )}
-
-      <footer className="board-foot">
-        <span>仲有 {view.deckRemaining} 題</span>
-        {playing && !confirmEnd && (
-          <button type="button" className="btn ghost" data-testid="reveal-now" onClick={() => setConfirmEnd(true)}>
-            揭曉
-          </button>
-        )}
-        {playing && confirmEnd && (
-          <span className="row">
-            <span>確定揭曉？</span>
-            <button type="button" className="btn gold" data-testid="reveal-confirm" onClick={() => send({ type: "reveal" })}>
-              確定
-            </button>
-            <button type="button" className="btn ghost" onClick={() => setConfirmEnd(false)}>
-              取消
-            </button>
-          </span>
-        )}
-        {revealed && <TimePicker limitMs={view.timeLimitMs} send={send} />}
-        {revealed && (
-          <div className="replay-choice">
-            <button type="button" className="btn gold" data-testid="replay-keep" onClick={() => send({ type: "restart" })}>
-              {view.intel === "hidden" ? "保持模式二：唔知對手分數" : "保持模式一：知道對手分數"}
-            </button>
+          <JoinQr url={joinUrl} />
+          <div className="stage-actions">
             <button
               type="button"
-              className="btn"
-              data-testid="replay-switch"
-              onClick={() =>
-                send({
-                  type: "restart",
-                  payload: { intel: view.intel === "hidden" ? "open" : "hidden" },
-                })
-              }
+              className="btn ghost"
+              data-testid="open-captains"
+              aria-expanded={captainsOpen}
+              onClick={() => setCaptainsOpen((open) => !open)}
             >
-              {view.intel === "hidden" ? "改為模式一：知道對手分數" : "改為模式二：唔知對手分數"}
+              換隊長
             </button>
+            {playing && !confirmEnd && (
+              <button type="button" className="btn ghost" data-testid="reveal-now" onClick={() => setConfirmEnd(true)}>
+                揭曉
+              </button>
+            )}
+            {playing && confirmEnd && (
+              <>
+                <span className="confirm-label">確定揭曉？</span>
+                <button type="button" className="btn gold" data-testid="reveal-confirm" onClick={() => send({ type: "reveal" })}>
+                  確定
+                </button>
+                <button type="button" className="btn ghost" onClick={() => setConfirmEnd(false)}>
+                  取消
+                </button>
+              </>
+            )}
           </div>
+        </header>
+
+        {playing && (
+          <section className="stage-question">
+            <div className="stage-q-meta">
+              <div>
+                {view.current && <Stars value={view.current.stars} />}
+                {view.current?.category && <p className="category">{view.current.category}</p>}
+              </div>
+              <QuestionTimer deadline={view.deadline} timedOut={view.timedOut} limitMs={view.timeLimitMs} send={send} />
+            </div>
+            <div className="stage-q-text">
+              <div>
+                <h2 className="question">{view.current?.question ?? "等緊下一題"}</h2>
+                {view.notice && <p className="notice">{view.notice}</p>}
+                {banner && <p className="flash">真實答案已送到對手手機</p>}
+              </div>
+            </div>
+            <p className="status-line" data-testid="status-line">
+              {view.awaiting === "decision" ? "要牌定停牌？" : `等待${view.turn === "red" ? "紅隊" : "藍隊"}輸入估計…`}
+            </p>
+          </section>
         )}
 
-      </footer>
-    </main>
+        {playing && (
+          <section className="score-row">
+            <TeamPanel team={view.red} tone="red" active={view.turn === "red"} />
+            <TeamPanel team={view.blue} tone="blue" active={view.turn === "blue"} />
+          </section>
+        )}
+
+        {revealed && (
+          <section className="reveal-fit" data-testid="reveal-screen">
+            <div className="reveal-banner">
+              <h2 data-testid="winner">{winnerLine(view.winner) || "揭曉"}</h2>
+              <p className="hint">最接近 21、又未爆嘅一隊贏。</p>
+            </div>
+            <div className="score-row">
+              <TeamPanel team={view.red} tone="red" showActual />
+              <TeamPanel team={view.blue} tone="blue" showActual />
+            </div>
+          </section>
+        )}
+
+        {revealed && (
+          <footer className="stage-foot">
+            <TimePicker limitMs={view.timeLimitMs} send={send} />
+            <div className="replay-choice">
+              <button type="button" className="btn gold" data-testid="replay-keep" onClick={() => send({ type: "restart" })}>
+                {view.intel === "hidden" ? "保持模式二：唔知對手分數" : "保持模式一：知道對手分數"}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                data-testid="replay-switch"
+                onClick={() =>
+                  send({
+                    type: "restart",
+                    payload: { intel: view.intel === "hidden" ? "open" : "hidden" },
+                  })
+                }
+              >
+                {view.intel === "hidden" ? "改為模式一：知道對手分數" : "改為模式二：唔知對手分數"}
+              </button>
+            </div>
+          </footer>
+        )}
+      </main>
+      {drawer}
+    </div>
+  );
+}
+
+function LobbyTeam({ team, tone }: { team: TeamView; tone: "red" | "blue" }) {
+  const captain = team.members.find((member) => member.id === team.captainId)?.nickname;
+  return (
+    <article className={`score-panel ${tone}`}>
+      <header className="score-panel-head">
+        <div className="score-panel-name">
+          <h2>{team.name}</h2>
+          <p className="captain-line">{captain ? `隊長 ${captain}` : "未定隊長"}</p>
+        </div>
+        <p className="member-count">{team.members.length} 人</p>
+      </header>
+      <ul className="history">
+        {team.members.length === 0 && <li className="history-empty">未有人加入</li>}
+        {team.members.map((member) => (
+          <li key={member.id} className="history-row" title={member.nickname}>
+            <span className="history-q">{member.nickname}</span>
+            {member.id === team.captainId && <span className="history-est">隊長</span>}
+          </li>
+        ))}
+      </ul>
+    </article>
+  );
+}
+
+function CaptainDrawer({
+  open,
+  view,
+  send,
+  onClose,
+}: {
+  open: boolean;
+  view: ClientView;
+  send: (message: ClientMessage) => void;
+  onClose: () => void;
+}) {
+  return (
+    <>
+      {open && <button type="button" className="drawer-backdrop" aria-label="關閉換隊長" onClick={onClose} />}
+      <aside className={open ? "captain-drawer open" : "captain-drawer"} inert={!open} aria-hidden={!open} role="dialog" aria-label="換隊長">
+        <div className="drawer-head">
+          <h2>換隊長</h2>
+          <button type="button" className="btn ghost" onClick={onClose}>
+            關閉
+          </button>
+        </div>
+        <p className="hint">平時收埋。開波之後只有投映主持可以換。</p>
+        <CaptainList team={view.red} send={send} />
+        <CaptainList team={view.blue} send={send} />
+      </aside>
+    </>
+  );
+}
+
+function CaptainList({ team, send }: { team: TeamView; send: (message: ClientMessage) => void }) {
+  return (
+    <section className={`drawer-team ${team.id}`}>
+      <h3>{team.name}</h3>
+      {team.members.length === 0 && <p className="history-empty">未有人加入</p>}
+      {team.members.map((member) => (
+        <button
+          key={member.id}
+          type="button"
+          className={member.id === team.captainId ? "btn gold wide" : "btn ghost wide"}
+          onClick={() => send({ type: "setCaptain", payload: { team: team.id as TeamId, clientId: member.id } })}
+        >
+          {member.id === team.captainId ? `${member.nickname} · 隊長` : `換 ${member.nickname} 做隊長`}
+        </button>
+      ))}
+    </section>
   );
 }
 
@@ -188,8 +310,6 @@ function TimePicker({ limitMs, send }: { limitMs: number | null; send: (message:
         <button type="button" className={chosen(60)} data-testid="time-60" onClick={() => pick(60)}>
           1分鐘
         </button>
-      </div>
-      <div className="row">
         <input
           inputMode="numeric"
           placeholder="自訂秒數"
@@ -293,55 +413,4 @@ function captainGap(view: ClientView): string | null {
   if (view.red.members.length > 0 && !view.red.captainId) return "紅隊未定隊長";
   if (view.blue.members.length > 0 && !view.blue.captainId) return "藍隊未定隊長";
   return null;
-}
-
-function TeamColumn({
-  team,
-  tone,
-  send,
-}: {
-  team: TeamView;
-  tone: "red" | "blue";
-  send: (message: ClientMessage) => void;
-}) {
-  const cards = team.cards.map((card) => ({
-    questionId: card.questionId,
-    question: card.question,
-    stars: card.stars,
-    estimate: card.estimate,
-  }));
-  return (
-    <article className={`column ${tone}`}>
-      <div className="team-head">
-        <h2>{team.name}</h2>
-        {team.stood && <span className="stood">{team.name}停牌</span>}
-      </div>
-      <p className="members">
-        {team.members.length === 0
-          ? "未有人加入"
-          : team.members.map((member) => (member.id === team.captainId ? `${member.nickname}（隊長）` : member.nickname)).join("、")}
-      </p>
-      {team.members.length > 0 && (
-        <div className="row">
-          {team.members.map((member) => (
-            <button
-              key={member.id}
-              type="button"
-              className={member.id === team.captainId ? "btn gold" : "btn ghost"}
-              onClick={() => send({ type: "setCaptain", payload: { team: team.id, clientId: member.id } })}
-            >
-              {member.id === team.captainId ? `${member.nickname}係隊長` : `換 ${member.nickname} 做隊長`}
-            </button>
-          ))}
-        </div>
-      )}
-      {cards.map((card) => (
-        <div key={card.questionId} className="card" data-testid="public-card">
-          <Stars value={card.stars} />
-          <p>{card.question}</p>
-          <p className="estimate">估 {card.estimate}</p>
-        </div>
-      ))}
-    </article>
-  );
 }
