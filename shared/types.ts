@@ -29,6 +29,11 @@ export interface Member {
   nickname: string;
 }
 
+export interface CategoryScore {
+  hits: number;
+  misses: number;
+}
+
 export interface TeamState {
   id: TeamId;
   name: string;
@@ -38,6 +43,7 @@ export interface TeamState {
   actualSum: number;
   stood: boolean;
   cards: ClaimedCard[];
+  categories: Record<string, CategoryScore>;
 }
 
 export interface Announcement {

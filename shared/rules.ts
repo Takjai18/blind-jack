@@ -91,6 +91,8 @@ export function beginHand(
   next.announcement = null;
   next.awaiting = "estimate";
   next.log = ["開波喇，紅隊先估"];
+  decayCategories(next.red);
+  decayCategories(next.blue);
   const current = drawNext(next, rng);
   if (!current) throw new Error("題庫係空嘅");
   next.current = current;
@@ -133,6 +135,7 @@ export function submitEstimate(
     actual: card.answer,
   });
   recount(actor);
+  noteCategory(actor, card.category, estimate, card.answer);
 
   const opponent = otherTeam(team);
   const shareIntel = state.intel !== "hidden";
@@ -254,7 +257,49 @@ function fail(state: RoomState, error: string): StepResult {
 }
 
 function emptyTeam(id: TeamId, name: string): TeamState {
-  return { id, name, captainId: null, members: [], estimateSum: 0, actualSum: 0, stood: false, cards: [] };
+  return {
+    id,
+    name,
+    captainId: null,
+    members: [],
+    estimateSum: 0,
+    actualSum: 0,
+    stood: false,
+    cards: [],
+    categories: {},
+  };
+}
+
+const MISS_FACTOR = 0.65;
+const HIT_FACTOR = 0.7;
+const WEIGHT_FLOOR = 0.2;
+const CATEGORY_DECAY = 0.85;
+
+export function categoryWeight(score: { hits: number; misses: number } | undefined): number {
+  if (!score) return 1;
+  const hitFactor = score.hits <= 1 ? 1 : HIT_FACTOR ** (score.hits - 1);
+  return Math.max(WEIGHT_FLOOR, MISS_FACTOR ** score.misses * hitFactor);
+}
+
+function noteCategory(team: TeamState, category: string | undefined, estimate: number, actual: number) {
+  const name = category?.trim();
+  if (!name) return;
+  const diff = Math.abs(estimate - actual);
+  if (diff === 2) return;
+  const current = team.categories?.[name] ?? { hits: 0, misses: 0 };
+  if (diff <= 1) current.hits += 1;
+  else current.misses += 1;
+  team.categories = { ...(team.categories ?? {}), [name]: current };
+}
+
+function decayCategories(team: TeamState) {
+  const next: TeamState["categories"] = {};
+  for (const [name, score] of Object.entries(team.categories ?? {})) {
+    const hits = score.hits * CATEGORY_DECAY;
+    const misses = score.misses * CATEGORY_DECAY;
+    if (hits >= 0.05 || misses >= 0.05) next[name] = { hits, misses };
+  }
+  team.categories = next;
 }
 
 function drawNext(state: RoomState, rng: () => number): Question | null {
@@ -263,7 +308,9 @@ function drawNext(state: RoomState, rng: () => number): Question | null {
   const opening = state.drawnCount < WARMUP_DRAWS;
   const available = new Set(state.deck.map((card) => card.stars));
   const star = chooseStar(opening, state.lastStar, available, rng);
-  const chosen = takeStar(state.deck, star, rng) ?? takeAny(state.deck, rng);
+  // The card is for whoever is about to play. submitEstimate switches turn before drawing.
+  const weightOf = (card: Question) => categoryWeight(state[state.turn].categories?.[card.category ?? ""]);
+  const chosen = takeStar(state.deck, star, weightOf, rng) ?? takeWeighted(state.deck, weightOf, rng);
   if (!chosen) return null;
   if (opening && chosen.stars !== 1 && !state.notice) {
     state.notice = chosen.stars === 2 ? "1星題唔夠，熱身改用2星" : "1星題唔夠，熱身改用3星";
@@ -294,21 +341,43 @@ function chooseStar(opening: boolean, last: Stars | null, available: Set<Stars>,
   return options[options.length - 1] ?? 1;
 }
 
-function takeStar(pool: Question[], star: Stars, rng: () => number): Question | null {
+function takeStar(
+  pool: Question[],
+  star: Stars,
+  weightOf: (card: Question) => number,
+  rng: () => number,
+): Question | null {
   const matches = pool.filter((card) => card.stars === star);
   if (matches.length === 0) return null;
-  const index = Math.min(matches.length - 1, Math.floor(rng() * matches.length));
-  const chosen = matches[index];
-  if (!chosen) return null;
+  const chosen = pickWeighted(matches, weightOf, rng);
   const at = pool.findIndex((card) => card.id === chosen.id);
   if (at >= 0) pool.splice(at, 1);
   return chosen;
 }
 
-function takeAny(pool: Question[], rng: () => number): Question | null {
+function takeWeighted(pool: Question[], weightOf: (card: Question) => number, rng: () => number): Question | null {
   if (pool.length === 0) return null;
-  const index = Math.min(pool.length - 1, Math.floor(rng() * pool.length));
-  return pool.splice(index, 1)[0] ?? null;
+  const chosen = pickWeighted(pool, weightOf, rng);
+  const at = pool.findIndex((card) => card.id === chosen.id);
+  if (at >= 0) pool.splice(at, 1);
+  return chosen;
+}
+
+function pickWeighted(items: Question[], weightOf: (card: Question) => number, rng: () => number): Question {
+  const weights = items.map((item) => Math.max(0, weightOf(item)));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const last = items[items.length - 1];
+  if (!last) throw new Error("題庫係空嘅");
+  if (total <= 0) {
+    return items[Math.min(items.length - 1, Math.floor(rng() * items.length))] ?? last;
+  }
+  let roll = rng() * total;
+  for (let index = 0; index < items.length; index += 1) {
+    roll -= weights[index] ?? 0;
+    const item = items[index];
+    if (roll <= 0 && item) return item;
+  }
+  return last;
 }
 
 function isPlayable(q: Question): boolean {

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Question, RoomState } from "./types";
 import {
   beginHand,
+  categoryWeight,
   createRoom,
   expireQuestion,
   forceReveal,
@@ -273,6 +274,47 @@ describe("star draw", () => {
     expect(questions.map((card) => card.id)).toContain(recycled.current?.id);
   });
 
+  it("keeps the next card of a category at full chance after one accurate answer", () => {
+    expect(categoryWeight({ hits: 1, misses: 0 })).toBe(1);
+    expect(categoryWeight(undefined)).toBe(1);
+    const state = playingCategory({ hits: 1, misses: 0 });
+    const drawn = submitEstimate(state, "red", 5, 1, () => 0.5).state;
+    expect(drawn.current?.category).toBe("體育");
+  });
+
+  it("lowers a category after the second accurate answer", () => {
+    expect(categoryWeight({ hits: 2, misses: 0 })).toBeCloseTo(0.7);
+    expect(categoryWeight({ hits: 4, misses: 0 })).toBeCloseTo(0.343);
+    const state = playingCategory({ hits: 2, misses: 0 });
+    const drawn = submitEstimate(state, "red", 5, 1, () => 0.5).state;
+    expect(drawn.current?.category).toBe("娛樂");
+    expect(drawn.red.categories["體育"]?.hits).toBe(2);
+  });
+
+  it("lowers a category after a miss and never drops it below a fifth", () => {
+    expect(categoryWeight({ hits: 0, misses: 1 })).toBeCloseTo(0.65);
+    expect(categoryWeight({ hits: 0, misses: 20 })).toBe(0.2);
+    const state = playingCategory({ hits: 0, misses: 1 });
+    const drawn = submitEstimate(state, "red", 10, 1, () => 0.5).state;
+    expect(drawn.current?.category).toBe("娛樂");
+    expect(drawn.red.categories["體育"]?.misses).toBe(1);
+  });
+
+  it("ignores an estimate that is two away from the answer", () => {
+    const state = playingCategory({ hits: 0, misses: 0 });
+    const drawn = submitEstimate(state, "red", 7, 1, () => 0).state;
+    expect(drawn.red.categories["體育"]).toEqual({ hits: 0, misses: 0 });
+    expect(drawn.red.categories["數學"]).toBeUndefined();
+  });
+
+  it("fades category memory when the same room starts another hand", () => {
+    const room = createRoom("CAT");
+    room.red.categories = { 體育: { hits: 2, misses: 1 } };
+    const again = beginHand(room, [q("a", 4)], keepDealOrder);
+    expect(again.red.categories["體育"]?.hits).toBeCloseTo(1.7);
+    expect(again.red.categories["體育"]?.misses).toBeCloseTo(0.85);
+  });
+
   it("uses a 2-star card for the warmup when no 1-star question is left", () => {
     const state = beginHand(createRoom("STAR"), [q("a", 4, 2)], () => 0);
     expect(state.current?.stars).toBe(2);
@@ -282,4 +324,22 @@ describe("star draw", () => {
 
 function lockHigh(state: RoomState, team: "red" | "blue", now: number) {
   return submitEstimate(state, team, 1, now, () => 0.99);
+}
+
+function playingCategory(score: { hits: number; misses: number }): RoomState {
+  const room = createRoom("CAT");
+  room.phase = "playing";
+  room.awaiting = "estimate";
+  room.drawnCount = 0;
+  room.lastStar = null;
+  room.timeLimitMs = null;
+  room.current = { id: "now", question: "now", answer: 5, stars: 1, category: "數學" };
+  room.deck = [
+    { id: "sports", question: "sports", answer: 5, stars: 1, category: "體育" },
+    { id: "fun", question: "fun", answer: 5, stars: 1, category: "娛樂" },
+  ];
+  room.blue.stood = true;
+  room.red.categories = { 體育: { ...score } };
+  room.blue.categories = { 體育: { hits: 2, misses: 0 } };
+  return room;
 }
